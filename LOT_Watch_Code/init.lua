@@ -1,7 +1,3 @@
-
-
-
-
 OLEDTimer= tmr.create()
 
 RefeshTime = tmr.create()
@@ -13,8 +9,8 @@ wifi.setmode(wifi.STATION)--wifi.STATION
 cfg={}
 --cfg.ssid="eagle"
 --cfg.pwd="12345wzw"
-cfg.ssid="eagle"
-cfg.pwd="12345wzw"
+cfg.ssid="MERCURY_ADAE"
+cfg.pwd="5477271.."
 wifi.sta.config(cfg)
 wifi.sta.connect()
 

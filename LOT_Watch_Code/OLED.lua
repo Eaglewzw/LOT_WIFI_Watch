@@ -41,12 +41,23 @@ function refreshTime()
 
      disp:setFont(u8g2.font_fub11_tr)
      disp:drawStr(39, 24, string.format("%02d.%02d.%02d", time["year"],time["mon"], time["day"]))
-    
-     if string.find(Weather,'Cloudy',1) ~= nil then
-        print("here efwr")
-        disp:drawXBM(0,22, icon_width, icon_height, cloudy_bits)
+     
+     if string.find(Weather,"Sunny") ~= nil then
+     disp:drawXBM(0,24, icon_width, icon_height, sunny_bits)
+     
+     elseif string.find(Weather,"Clear") ~= nil then
+     disp:drawXBM(0,24, icon_width, icon_height, clear_bits)
+     
+     elseif string.find(Weather,'Cloudy',1) ~= nil then
+     disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
+     
+     elseif string.find(Weather,"Snow") ~= nil then
+     disp:drawXBM(0,24, icon_width, icon_height, snow_bits)
+        
+     elseif string.find(Weather,"Rain") ~= nil then
+     disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
      else
-        print("fuckfewAHT4YU5JEIOGKFQIT4YGU5TR230UY0-3I2DT")
+         disp:drawXBM(0,24, icon_width, icon_height, over_bits)
      end
  
     --if string.find(Weather,"Cloudy",1) ~= nil then

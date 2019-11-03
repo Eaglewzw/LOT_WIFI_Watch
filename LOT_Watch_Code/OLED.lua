@@ -47,9 +47,19 @@ function refreshTime()
      
      elseif string.find(Weather,"Clear") ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, clear_bits)
+
+     elseif string.find(Weather,"Fair") ~= nil then
+     disp:drawXBM(0,24, icon_width, icon_height, sunny_bits)
      
      elseif string.find(Weather,'Cloudy',1) ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
+
+     elseif string.find(Weather,'Partly Cloudy',1) ~= nil then
+     disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
+
+     elseif string.find(Weather,'Mostly Cloudy',1) ~= nil then
+     disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
+
      
      elseif string.find(Weather,"Snow") ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, snow_bits)

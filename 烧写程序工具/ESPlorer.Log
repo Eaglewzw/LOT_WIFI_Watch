@@ -1,0 +1,466 @@
+<?xml version="1.0" encoding="GBK" standalone="no"?>
+<!DOCTYPE log SYSTEM "logger.dtd">
+<log>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905292</millis>
+  <sequence>5</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Load saved settings: Firmware:NodeMCU</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905296</millis>
+  <sequence>6</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Snippets: loading...</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905307</millis>
+  <sequence>7</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Snippets load: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905386</millis>
+  <sequence>8</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Set new color theme: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905391</millis>
+  <sequence>9</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Load saved settings: DONE.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905394</millis>
+  <sequence>10</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Snippets: loading...</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905398</millis>
+  <sequence>11</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Snippets load: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905661</millis>
+  <sequence>12</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Scan system...</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905671</millis>
+  <sequence>13</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>found last saved serial port COM4</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905673</millis>
+  <sequence>14</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>found COM24</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905674</millis>
+  <sequence>15</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>found COM25</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:25</date>
+  <millis>1570613905676</millis>
+  <sequence>16</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Scan done.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:38</date>
+  <millis>1570613918988</millis>
+  <sequence>17</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Try to open file init.lua</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:38</date>
+  <millis>1570613918988</millis>
+  <sequence>18</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>File name: C:\Users\QIAN工作站\Desktop\esp8266_lua开发\project\weather_v2.0\源码\init.lua</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:38</date>
+  <millis>1570613918990</millis>
+  <sequence>19</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Try to load file init.lua</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:39</date>
+  <millis>1570613919035</millis>
+  <sequence>20</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Loading init.lua: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:39</date>
+  <millis>1570613919036</millis>
+  <sequence>21</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Open "init.lua": Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:41</date>
+  <millis>1570613921559</millis>
+  <sequence>22</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Try to open file oled.lua</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:41</date>
+  <millis>1570613921560</millis>
+  <sequence>23</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>File name: C:\Users\QIAN工作站\Desktop\esp8266_lua开发\project\weather_v2.0\源码\oled.lua</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:41</date>
+  <millis>1570613921561</millis>
+  <sequence>24</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Try to load file oled.lua</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:41</date>
+  <millis>1570613921600</millis>
+  <sequence>25</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Loading oled.lua: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:41</date>
+  <millis>1570613921601</millis>
+  <sequence>26</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Open "oled.lua": Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:44</date>
+  <millis>1570613924172</millis>
+  <sequence>27</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Try to open file weather.lua</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:44</date>
+  <millis>1570613924172</millis>
+  <sequence>28</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>File name: C:\Users\QIAN工作站\Desktop\esp8266_lua开发\project\weather_v2.0\源码\weather.lua</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:44</date>
+  <millis>1570613924173</millis>
+  <sequence>29</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Try to load file weather.lua</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:44</date>
+  <millis>1570613924186</millis>
+  <sequence>30</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Loading weather.lua: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:44</date>
+  <millis>1570613924186</millis>
+  <sequence>31</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Open "weather.lua": Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:56</date>
+  <millis>1570613936537</millis>
+  <sequence>32</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Serial port COM4 save as default.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:56</date>
+  <millis>1570613936538</millis>
+  <sequence>33</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Baud rate 115200 save as default.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:56</date>
+  <millis>1570613936538</millis>
+  <sequence>34</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Try to open port COM4, baud 115200, 8N1</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:56</date>
+  <millis>1570613936547</millis>
+  <sequence>35</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>Open port COM4 - Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:56</date>
+  <millis>1570613936559</millis>
+  <sequence>36</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>sending:&lt;CR&gt;&lt;LF&gt;</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:56</date>
+  <millis>1570613936852</millis>
+  <sequence>37</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>sending:&lt;CR&gt;&lt;LF&gt;</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:56</date>
+  <millis>1570613936939</millis>
+  <sequence>38</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>36</thread>
+  <message>sending:=node.heap()&lt;CR&gt;&lt;LF&gt;</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:56</date>
+  <millis>1570613936952</millis>
+  <sequence>39</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>36</thread>
+  <message>Snippets: loading...</message>
+</record>
+<record>
+  <date>2019-10-09T17:38:56</date>
+  <millis>1570613936959</millis>
+  <sequence>40</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>36</thread>
+  <message>Snippets load: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:44:50</date>
+  <millis>1570614290564</millis>
+  <sequence>41</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>FileTab removed: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:44:50</date>
+  <millis>1570614290565</millis>
+  <sequence>42</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>File close: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:44:50</date>
+  <millis>1570614290566</millis>
+  <sequence>43</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>FileTab removed: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:44:50</date>
+  <millis>1570614290567</millis>
+  <sequence>44</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>File close: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:44:50</date>
+  <millis>1570614290578</millis>
+  <sequence>45</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>FileTab cleared: Success.</message>
+</record>
+<record>
+  <date>2019-10-09T17:44:50</date>
+  <millis>1570614290579</millis>
+  <sequence>46</sequence>
+  <logger>ESPlorer.ESPlorer</logger>
+  <level>INFO</level>
+  <class>ESPlorer.ESPlorer</class>
+  <method>log</method>
+  <thread>16</thread>
+  <message>File close: Success.</message>
+</record>
+</log>

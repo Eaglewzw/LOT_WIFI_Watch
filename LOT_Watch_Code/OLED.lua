@@ -2,10 +2,18 @@ OLED_SDA = 1
 OLED_SCL = 2
 
 
+
+icon_width = 40             
+icon_height = 40 
+ 
 City = "Lanzhou++"
 Weather = 'Cloudy'
 Temperature="21"
 Code = "4"
+
+
+-----Menuflag
+MenuFlag=0
 
 function Init_OLED(sda,scl)
      sla = 0x3c
@@ -31,14 +39,13 @@ function refreshTime()
     --width:17   Height:31
      disp:setFont(u8g2.font_fub20_tn)
 
+     
      disp:drawStr(6, 1, string.format("%02d", time["hour"]))
      disp:drawStr(37, 0,":")
      disp:drawStr(50, 1, string.format("%02d", time["min"]))
      disp:drawStr(81, 0,":")
      disp:drawStr(94, 1, string.format("%02d", time["sec"]))
      
-     
-
      disp:setFont(u8g2.font_fub11_tr)
      disp:drawStr(39, 24, string.format("%02d.%02d.%02d", time["year"],time["mon"], time["day"]))
      
@@ -60,7 +67,6 @@ function refreshTime()
      elseif string.find(Weather,'Mostly Cloudy',1) ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
 
-     
      elseif string.find(Weather,"Snow") ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, snow_bits)
         
@@ -69,20 +75,7 @@ function refreshTime()
      else
          disp:drawXBM(0,24, icon_width, icon_height, over_bits)
      end
- 
-    --if string.find(Weather,"Cloudy",1) ~= nil then
-    --disp:drawXBM(0,22, icon_width, icon_height, cloudy_bits)
-    --elseif string.find(Weather,"Rain") ~= nil then
-    --disp:drawXBM(0,22, icon_width, icon_height, rain_bits) 
-    --elseif string.find(Weather,"Snow") ~= nil then
-    --disp:drawXBM(0,22, icon_width, icon_height, snow_bits)
-    --elseif string.find(Weather,"Overcast") ~= nil then
-    --disp:drawXBM(0,22, icon_width, icon_height, over_bits)
-    --elseif string.find(Weather,"Sunny") ~= nil then
-    --disp:drawXBM(0,22, icon_width, sunny_height, sunny_bits)
-    --elseif string.find(Weather,"Clear") ~= nil then
-    --disp:drawXBM(0,22, icon_width, icon_height, sunny_bits)
-    --end
+
      disp:sendBuffer()      
    
     

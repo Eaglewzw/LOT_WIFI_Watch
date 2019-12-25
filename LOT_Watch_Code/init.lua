@@ -7,10 +7,10 @@ RefeshWeather = tmr.create()
 
 wifi.setmode(wifi.STATION)--wifi.STATION
 cfg={}
---cfg.ssid="eagle"
---cfg.pwd="12345wzw"
-cfg.ssid="MERCURY_ADAE"
-cfg.pwd="5477271.."
+cfg.ssid="eagle"
+cfg.pwd="12345wzw"
+--cfg.ssid="MERCURY_ADAE"
+--cfg.pwd="5477271.."
 wifi.sta.config(cfg)
 wifi.sta.connect()
 
@@ -27,9 +27,12 @@ end)
 tmr.delay(10000)
 dofile("icon.lua")
 dofile("OLED.lua")
+dofile("key.lua")
 
 sntp.sync(wifi.sta.getip(),nil,nil)
 
-RefeshWeather:alarm(8000,tmr.ALARM_AUTO,GetWeather)
+
+GetWeather()   
+RefeshWeather:alarm(800000,tmr.ALARM_AUTO,GetWeather)
 --refesh the rtc time every second
 RefeshTime:alarm(1000,tmr.ALARM_AUTO,refreshTime)

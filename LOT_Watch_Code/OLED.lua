@@ -12,8 +12,12 @@ Temperature="21"
 Code = "4"
 
 
------Menuflag
-MenuFlag=0
+MenuFlag = 0
+UpFlag = 0
+DownFlag= 0
+BackFlag= 0
+
+
 
 function Init_OLED(sda,scl)
      sla = 0x3c
@@ -38,48 +42,52 @@ function refreshTime()
     --disp:drawFrame(0, 0,128,16)          --Draw a frame (empty box).
     --width:17   Height:31
      disp:setFont(u8g2.font_fub20_tn)
-
-     
+     if MenuFlag == 0 then
      disp:drawStr(6, 1, string.format("%02d", time["hour"]))
      disp:drawStr(37, 0,":")
      disp:drawStr(50, 1, string.format("%02d", time["min"]))
      disp:drawStr(81, 0,":")
      disp:drawStr(94, 1, string.format("%02d", time["sec"]))
-     
-     disp:setFont(u8g2.font_fub11_tr)
-     disp:drawStr(39, 24, string.format("%02d.%02d.%02d", time["year"],time["mon"], time["day"]))
+     disp:setFont(u8g2.font_fub11_tr)  
+     disp:drawStr(39, 24, string.format("%02d/%02d/%02d", time["year"],time["mon"], time["day"]))
      
      if string.find(Weather,"Sunny") ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, sunny_bits)
-     
      elseif string.find(Weather,"Clear") ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, clear_bits)
-
      elseif string.find(Weather,"Fair") ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, sunny_bits)
-     
      elseif string.find(Weather,'Cloudy',1) ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
-
      elseif string.find(Weather,'Partly Cloudy',1) ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
-
      elseif string.find(Weather,'Mostly Cloudy',1) ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
-
      elseif string.find(Weather,"Snow") ~= nil then
-     disp:drawXBM(0,24, icon_width, icon_height, snow_bits)
-        
+     disp:drawXBM(0,24, icon_width, icon_height, snow_bits)  
      elseif string.find(Weather,"Rain") ~= nil then
      disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
      else
          disp:drawXBM(0,24, icon_width, icon_height, over_bits)
      end
-
-     disp:sendBuffer()      
+     disp:sendBuffer() 
+     
+    elseif MenuFlag == 1 then
    
+    disp:drawFrame(0, 0,128,16)          --Draw a frame (empty box).
+    disp:sendBuffer() 
+
+    elseif MenuFlag == 2 then
+    disp:drawFrame(0, 0,128,32)          --Draw a frame (empty box).
+    disp:sendBuffer() 
     
-    
+    elseif MenuFlag == 3 then
+ 
+    disp:drawFrame(0, 0,128,64)          --Draw a frame (empty box).
+    disp:sendBuffer() 
+    else
+        MenuFlag=0
+    end 
 end
 
 

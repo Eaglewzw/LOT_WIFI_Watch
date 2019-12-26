@@ -1,4 +1,3 @@
-OLEDTimer= tmr.create()
 
 RefeshTime = tmr.create()
 
@@ -32,7 +31,7 @@ dofile("key.lua")
 sntp.sync(wifi.sta.getip(),nil,nil)
 
 
-GetWeather()   
-RefeshWeather:alarm(800000,tmr.ALARM_AUTO,GetWeather)
+--GetWeather()   
+--RefeshWeather:alarm(800000,tmr.ALARM_AUTO,GetWeather)
 --refesh the rtc time every second
 RefeshTime:alarm(1000,tmr.ALARM_AUTO,refreshTime)

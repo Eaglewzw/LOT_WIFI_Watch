@@ -30,7 +30,7 @@ end
 
 
 function onBtnEventOfSet()
-    tmr.delay(1500)
+    tmr.delay(1800)
     if gpio.read(Set_key) == 1 then
         while(gpio.read(Set_key) == 1) do
             i=i+1
@@ -41,7 +41,7 @@ function onBtnEventOfSet()
         end
         disp:clearBuffer()    --clearbuffer
         MenuFlag=MenuFlag+1
-            if MenuFlag == 4 then
+            if MenuFlag == 5 then
                 MenuFlag = 0
             end
     end
@@ -50,7 +50,7 @@ function onBtnEventOfSet()
     
 end
 function onBtnEventOfUp()
-    tmr.delay(1500)
+    tmr.delay(1800)
     if gpio.read(Up_key) == 0 then
     
         while(gpio.read(Up_key) == 0) do
@@ -68,7 +68,7 @@ function onBtnEventOfUp()
 end
 
 function onBtnEventOfDown()
-    tmr.delay(1500)
+    tmr.delay(1800)
     if gpio.read(Down_key) == 0 then
     
         while(gpio.read(Down_key) == 0) do
@@ -85,7 +85,7 @@ function onBtnEventOfDown()
 end
 
 function onBtnEventOfBack()
-    tmr.delay(1500)
+    tmr.delay(1800)
     if gpio.read(Back_key) == 0 then
     
         while(gpio.read(Back_key) == 0) do

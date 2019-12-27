@@ -17,7 +17,8 @@ wifi.sta.connect()
 
 wifi.eventmon.register(wifi.eventmon.STA_GOT_IP, function()
      print("Connected, IP is "..wifi.sta.getip())
-     --GetWeather()  
+--     GetThreeDaysWeather()
+     GetWeather()  
      refreshTime()
 end)
 
@@ -26,6 +27,6 @@ wifi.eventmon.register(wifi.eventmon.STA_DISCONNECTED, function()
 end)
 
 sntp.sync(wifi.sta.getip(),nil,nil)
---RefeshWeather:alarm(6000000,tmr.ALARM_AUTO,GetWeather)
+RefeshWeather:alarm(6000000,tmr.ALARM_AUTO,GetWeather)
 --refesh the rtc time every second
 RefeshTime:alarm(1000,tmr.ALARM_AUTO,refreshTime)

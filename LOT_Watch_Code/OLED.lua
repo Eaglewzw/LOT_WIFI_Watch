@@ -1,16 +1,9 @@
-OLED_SDA = 1
-OLED_SCL = 2
 
+local OLED_SDA = 1
+local OLED_SCL = 2
 
-
-icon_width = 40             
-icon_height = 40 
- 
-City = "Lanzhou"
-Weather = 'Cloudy'
-Temperature="21"
-Code = "4"
-
+Weather = 'Unkonw'
+Temperature="20"
 
 MenuFlag = 0
 UpFlag = 0
@@ -50,42 +43,46 @@ function refreshTime()
      --width:10   Height:19 
      ---u8g2_font_t0_22_tn
      disp:setFont(u8g2.font_t0_22_tr) 
-     disp:drawStr(40, 24, string.format("%02d/%02d", time["mon"], time["day"]))
-     
-     disp:drawStr(104, 24, Temperature)
+     disp:drawStr(40, 32, string.format("%02d/%02d", time["mon"], time["day"]))
+      disp:setFont(u8g2.font_fub20_tn)
+     disp:drawStr(94, 24, Temperature)
      disp:drawXBM(112,48, 16, 16, Temperature_Icon)
-     
-     disp:drawStr(40, 42, Weather)
+     disp:setFont(u8g2.font_t0_22_tr)
+     disp:drawStr(40, 50, Weather)
      --disp:setFont(u8g2.font_fub11_tr)  
      --disp:drawStr(39, 24, string.format("%02d/%02d/%02d", time["year"],time["mon"], time["day"]))
      
      if string.find(Weather,"Sunny") ~= nil then
-        disp:drawXBM(0,24, icon_width, icon_height, sunny_bits)
+        disp:drawXBM(0,24, 40, 40, sunny_bits)
      elseif string.find(Weather,"Clear") ~= nil then
-        disp:drawXBM(0,24, icon_width, icon_height, clear_bits)
+        disp:drawXBM(0,24, 40, 40, sunny_bits)
      elseif string.find(Weather,"Fair") ~= nil then
-        disp:drawXBM(0,24, icon_width, icon_height, sunny_bits)
+        disp:drawXBM(0,24, 40, 40, sunny_bits)
      elseif string.find(Weather,'Cloudy',1) ~= nil then
-        disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
+        disp:drawXBM(0,24, 40, 40, cloudy_bits)
         Weather = 'Cloudy'
      elseif string.find(Weather,'Overcast',1) ~= nil then
-        disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
+        disp:drawXBM(0,24,40, 40, cloudy_bits)
         Weather = 'Cast'
      elseif string.find(Weather,"Shower") ~= nil then
-        disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
+        disp:drawXBM(0,24, 40, 40, rain_bits) 
         Weather = 'Shower' 
      elseif string.find(Weather,"Rain") ~= nil then
-        disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
+        disp:drawXBM(0,24, 40, 40, rain_bits) 
      elseif string.find(Weather,"Storm") ~= nil then
-        disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
+        disp:drawXBM(0,24, 40, 40, rain_bits) 
      elseif string.find(Weather,"Snow") ~= nil then
-        disp:drawXBM(0,24, icon_width, icon_height, snow_bits)
+        disp:drawXBM(0,24, 40, 40, snow_bits)
      elseif string.find(Weather,"Sleet") ~= nil then
-        disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
+        disp:drawXBM(0,24,40, 40, rain_bits) 
      elseif string.find(Weather,"Rain") ~= nil then
-        disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
+        disp:drawXBM(0,24, 40, 40, rain_bits) 
      else
-         disp:drawXBM(0,24, icon_width, icon_height, over_bits)
+         --disp:drawXBM(0,24, 40, 40, over_bits)
+        disp:setFont(u8g2.font_t0_22_tr) 
+        disp:drawStr(4, 36,"N/A" )
+        disp:drawCircle(20,43,20)
+        Weather = 'Unkonw' 
      end
         disp:sendBuffer() 
      
@@ -158,14 +155,50 @@ function GetWeather()
 end
 
 function GetThreeDaysWeather()
-
-
-
-
+if wifi.sta.getip() ~= nil then
+    srv=net.createConnection(net.TCP,0) 
+    srv:on("receive", function(sck, c)
+    --print(c)
+    i,j=string.find(c, "{")
+    sjson_str=string.sub(c, i)
+    --print(sjson_str)
+    local sjson = require("sjson");
+    local json = sjson.decode(sjson_str); 
+    
+    print("City: " ..json.results[1]["location"]["name"])
+    
+    print("Weather: " ..json.results[1]["daily"][1]["date"])
+    print("Weather: " ..json.results[1]["daily"][1]["text_day"])
+    print("Code: " ..json.results[1]["daily"][1]["code_day"])
+    print("Temperature-High: " ..json.results[1]["daily"][1]["high"])
+    print("Temperature-Low: " ..json.results[1]["daily"][1]["low"] .." C\n")
+    
+    print("Weather: " ..json.results[1]["daily"][2]["date"])
+    print("Weather: " ..json.results[1]["daily"][2]["text_day"])
+    print("Code: " ..json.results[1]["daily"][2]["code_day"])
+    print("Temperature-High: " ..json.results[1]["daily"][2]["high"])
+    print("Temperature-Low: " ..json.results[1]["daily"][2]["low"] .." C\n")
+    
+    print("Weather: " ..json.results[1]["daily"][3]["date"])
+    print("Weather: " ..json.results[1]["daily"][3]["text_day"])
+    print("Code: " ..json.results[1]["daily"][3]["code_day"])
+    print("Temperature-High: " ..json.results[1]["daily"][3]["high"])
+    print("Temperature-Low: " ..json.results[1]["daily"][3]["low"] .." C\n")
+    
+    --City=string.format("%s",json["results"][1]["location"]["name"])
+    --Weather=string.format("%s",json["results"][1]["now"]["text"])
+    --Temperature=string.format("%s",json["results"][1]["now"]["temperature"])
+    --Code=string.format("%s",json["results"][1]["now"]["code"])
+    
+    end)
+    srv:on("connection", function(sck, c)
+    sck:send("GET /v3/weather/daily.json?key=cinm0okk7gzgtujn&location=lanzhou&language=en&unit=c&start=0&days=4 HTTP/1.1\r\nHost: api.seniverse.com\r\nConnection: keep-alive\r\nAccept: */*\r\n\r\n")
+    end)
+    srv:connect(80,"api.seniverse.com") 
+    end
 end
 
-Init_OLED(OLED_SDA,OLED_SCL)
-GetWeather()   
+Init_OLED(OLED_SDA,OLED_SCL) 
 
 
 

@@ -52,36 +52,45 @@ function refreshTime()
      disp:setFont(u8g2.font_t0_22_tr) 
      disp:drawStr(40, 24, string.format("%02d/%02d", time["mon"], time["day"]))
      
-     disp:drawStr(40, 24, Temperature)
+     disp:drawStr(104, 24, Temperature)
+     disp:drawXBM(112,48, 16, 16, Temperature_Icon)
      
      disp:drawStr(40, 42, Weather)
      --disp:setFont(u8g2.font_fub11_tr)  
      --disp:drawStr(39, 24, string.format("%02d/%02d/%02d", time["year"],time["mon"], time["day"]))
      
      if string.find(Weather,"Sunny") ~= nil then
-     disp:drawXBM(0,24, icon_width, icon_height, sunny_bits)
+        disp:drawXBM(0,24, icon_width, icon_height, sunny_bits)
      elseif string.find(Weather,"Clear") ~= nil then
-     disp:drawXBM(0,24, icon_width, icon_height, clear_bits)
+        disp:drawXBM(0,24, icon_width, icon_height, clear_bits)
      elseif string.find(Weather,"Fair") ~= nil then
-     disp:drawXBM(0,24, icon_width, icon_height, sunny_bits)
+        disp:drawXBM(0,24, icon_width, icon_height, sunny_bits)
      elseif string.find(Weather,'Cloudy',1) ~= nil then
-     disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
-     elseif string.find(Weather,'Partly Cloudy',1) ~= nil then
-     disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
-     elseif string.find(Weather,'Mostly Cloudy',1) ~= nil then
-     disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
-     elseif string.find(Weather,"Snow") ~= nil then
-     disp:drawXBM(0,24, icon_width, icon_height, snow_bits)  
+        disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
+        Weather = 'Cloudy'
+     elseif string.find(Weather,'Overcast',1) ~= nil then
+        disp:drawXBM(0,24, icon_width, icon_height, cloudy_bits)
+        Weather = 'Cast'
+     elseif string.find(Weather,"Shower") ~= nil then
+        disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
+        Weather = 'Shower' 
      elseif string.find(Weather,"Rain") ~= nil then
-     disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
+        disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
+     elseif string.find(Weather,"Storm") ~= nil then
+        disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
+     elseif string.find(Weather,"Snow") ~= nil then
+        disp:drawXBM(0,24, icon_width, icon_height, snow_bits)
+     elseif string.find(Weather,"Sleet") ~= nil then
+        disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
+     elseif string.find(Weather,"Rain") ~= nil then
+        disp:drawXBM(0,24, icon_width, icon_height, rain_bits) 
      else
          disp:drawXBM(0,24, icon_width, icon_height, over_bits)
      end
-     disp:sendBuffer() 
+        disp:sendBuffer() 
      
     elseif MenuFlag == 1 then
-    disp:drawXBM(37,20, 40, 42, Clock_bits) 
-
+        disp:drawXBM(0,0, 40, 42, Clock_bits) 
     --disp:drawFrame(0, 0,128,16)          --Draw a frame (empty box).
     disp:sendBuffer() 
 
@@ -90,21 +99,21 @@ function refreshTime()
       
     elseif MenuFlag == 2 then
     
-    disp:drawXBM(37,20, 40, 42, Weather_bits) 
+    disp:drawXBM(0,0, 40, 42, Weather_bits) 
   
     --disp:drawFrame(0, 0,128,16)          --Draw a frame (empty box).
     disp:sendBuffer() 
 
       
     elseif MenuFlag == 3 then
-    disp:drawXBM(37,20, 40, 42, Home_bits) 
+    disp:drawXBM(0,0, 40, 42, Home_bits) 
    
     --disp:drawFrame(0, 0,128,16)          --Draw a frame (empty box).
     disp:sendBuffer() 
 
       
     elseif MenuFlag == 4 then
-    disp:drawXBM(37,20, 40, 42, Set_bits) 
+    disp:drawXBM(0,0, 40, 42, Set_bits) 
     --disp:drawFrame(0, 0,128,16)          --Draw a frame (empty box).
     disp:sendBuffer() 
 
@@ -139,12 +148,6 @@ function GetWeather()
         Temperature=string.format("%s",json["results"][1]["now"]["temperature"])
         Code=string.format("%s",json["results"][1]["now"]["code"])
 
-
-        --print("City",City)
-        --print("Weather",Weather)
-        --print("Code",Code)
-    
-      
         end)
         srv:on("connection", function(sck, c)
         sck:send("GET /v3/weather/now.json?key=cinm0okk7gzgtujn&location=lanzhou&language=en&unit=c HTTP/1.1\r\nHost: api.seniverse.com\r\nConnection: keep-alive\r\nAccept: */*\r\n\r\n")
@@ -152,6 +155,13 @@ function GetWeather()
         srv:connect(80,"api.seniverse.com") 
         
    end
+end
+
+function GetThreeDaysWeather()
+
+
+
+
 end
 
 Init_OLED(OLED_SDA,OLED_SCL)

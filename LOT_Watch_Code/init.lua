@@ -17,9 +17,9 @@ wifi.sta.connect()
 
 wifi.eventmon.register(wifi.eventmon.STA_GOT_IP, function()
      print("Connected, IP is "..wifi.sta.getip())
---     GetThreeDaysWeather()
      GetWeather()  
      refreshTime()
+     GetThreeDaysWeather()
 end)
 
 wifi.eventmon.register(wifi.eventmon.STA_DISCONNECTED, function()

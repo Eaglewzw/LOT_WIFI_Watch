@@ -1,5 +1,3 @@
-
-
 Weather = 'Cloudy'
 Temperature ="20"
 
@@ -272,7 +270,3 @@ if wifi.sta.getip() ~= nil then
 end
 
 Init_OLED() 
-
-
-
-

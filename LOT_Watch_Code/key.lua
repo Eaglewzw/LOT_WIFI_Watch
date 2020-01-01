@@ -6,12 +6,6 @@
     local System_LED = 0
 --]]
 
-
-
-
-
-
-
 function KeyLED_Init()
     local Set_key  = 7
     local Up_key   = 6

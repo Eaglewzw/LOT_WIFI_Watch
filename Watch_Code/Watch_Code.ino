@@ -26,6 +26,18 @@
 const char* WIFI_SSID = "MERCURY_ADAE";
 const char* WIFI_PWD = "5477271..";
 
+//天气
+//访问心知天气的网站，获取天气数据
+WiFiClient client;//创建网络对象
+const int httpPort = 80;
+const char* host = "api.seniverse.com";
+//定义当日天气变量
+char *location_name = "Lanzhou";
+char *now_text = "Sunny";
+char *now_code = "0";
+char *now_temperature = "27";
+
+
 // 网络时间
 // initial time (possibly given by an external RTC)
 #define RTC_UTC_TEST 1510592825 // 1510592825 = Monday 13 November 2017 17:07:05 UTC
@@ -77,14 +89,14 @@ OLEDDisplayUi   ui( &display );
 void drawProgress(OLEDDisplay *display, int percentage, String label);
 //初始数据获取
 void updateData(OLEDDisplay *display);
-//时间日期设定
-void time_is_set_scheduled();
-//串口时间打印，用来调试看的
-void showTime();
+//时间日期获取
+void getCurrentTime(void);
+void time_is_set_scheduled(void);
 //按键函数
 void doKeysFunction(void);
 int getKeys(void);
-
+//获取当天气数据
+void GetCurrentWeather(void);
 
 //五个界面框架
 //主界面框架
@@ -228,9 +240,89 @@ void drawHeaderOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
   display->setTextAlignment(TEXT_ALIGN_LEFT);
   display->drawString(0, 54, String(buff));
   display->setTextAlignment(TEXT_ALIGN_RIGHT);
-  //String temp = String(currentWeather.temp, 1) + (IS_METRIC ? "°C" : "°F");
-  //display->drawString(128, 54, temp);
+  String temp = String(now_temperature)  +  "°C";
+  display->drawString(128, 54, temp);
   display->drawHorizontalLine(0, 52, 128);
+}
+
+
+// Json数据解析并串口打印
+
+/*  请求的Json数据格式如下：
+ * {
+ *    "results": [
+ *        {
+ *            "location": {
+ *                "id": "WX4FBXXFKE4F",
+ *                "name": "北京",
+ *                "country": "CN",
+ *                "path": "北京,北京,中国",
+ *                "timezone": "Asia/Shanghai",
+ *                "timezone_offset": "+08:00"
+ *            },
+ *            "now": {
+ *                "text": "多云",
+ *                "code": "4",
+ *                "temperature": "23"
+ *            },
+ *            "last_update": "2019-10-13T09:51:00+08:00"
+ *        }
+ *    ]
+ *}
+ */
+
+void GetCurrentWeather(void)  
+{
+    //向心知天气的服务器发送请求。
+    //连接服务器并判断是否连接成功，若成功就发送GET 请求数据下发 
+    String json_from_server; 
+    if(client.connect(host, httpPort)==1)                 
+    {     
+        //主要格式                                        
+        client.print("GET /v3/weather/now.json?key=smtq3n0ixdggurox&location=Lanzhou&language=en&unit=c HTTP/1.1\r\nHost:api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
+        String status_code = client.readStringUntil('\r');        //读取GET数据，服务器返回的状态码，若成功则返回状态码200
+        Serial.println(status_code);
+        if(client.find("\r\n\r\n")==1)                            //跳过返回的数据头，直接读取后面的JSON数据，
+        {
+          json_from_server=client.readStringUntil('\n');  //读取返回的JSON数据
+          Serial.println(json_from_server);
+        }
+    }
+    else                                        
+    { 
+        Serial.println("connection failed this time");
+        delay(5000);                                            //请求失败等5秒
+    } 
+                              
+    const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + 2*JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 210;
+    DynamicJsonDocument jsonBuffer(capacity);
+    // Parse JSON object
+    //将天气数据放入jsonBuffer
+    DeserializationError error = deserializeJson(jsonBuffer, json_from_server);
+    if (error) {
+      Serial.print(F("deserializeJson() failed: "));
+      Serial.println(error.c_str());
+      return;
+    }
+    //以下代码分别提取地区，当前天气，代码，及湿度
+    Serial.println("Start Decode:");
+    strcpy(location_name,jsonBuffer["results"][0]["location"]["name"]);
+    strcpy(now_text,jsonBuffer["results"][0]["now"]["text"]);
+    strcpy(now_code,jsonBuffer["results"][0]["now"]["code"]);
+    strcpy(now_temperature,jsonBuffer["results"][0]["now"]["temperature"]);
+     //通过串口打印出需要的信息
+    Serial.println(location_name);                      
+    Serial.println(now_text);
+    Serial.println(now_code);
+    Serial.println(now_temperature);
+    Serial.print("\r\n");
+    client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开   
+}
+
+void GetForestWeather(void)  
+{
+    
+   
 }
 
 
@@ -245,10 +337,9 @@ void drawProgress(OLEDDisplay *display, int percentage, String label) {
   display->display();
 }
 
-void updateData(OLEDDisplay *display) {
-  drawProgress(display, 10, "Updating time...");
-  
-  // setup RTC time   
+
+void getCurrentTime(void){
+    // setup RTC time   
   // it will be used until NTP server will send us real current time
   time_t rtc = RTC_UTC_TEST;
   timeval tv = { rtc, 0 };
@@ -260,37 +351,29 @@ void updateData(OLEDDisplay *display) {
   // NTP servers may be overriden by your DHCP server for a more local one
   // (see below)
   configTime(MYTZ, "pool.ntp.org");
+  delay(5000);//等待获取完成
   // OPTIONAL: disable obtaining SNTP servers from DHCP
   //sntp_servermode_dhcp(0); // 0: disable obtaining SNTP servers from DHCP (enabled by default)
-  showTime();
+}
 
+void updateData(OLEDDisplay *display) {
+  drawProgress(display, 10, "Updating time...");
+  getCurrentTime();
 
-  
   drawProgress(display, 30, "Updating weather...");
+  GetCurrentWeather();
 
-
-  
   drawProgress(display, 50, "Updating forecasts...");
 
 
   drawProgress(display, 100, "Done...");
-  delay(1000);
+  
 }
 
 
 
 
 
-
-
-void showTime() {
-  gettimeofday(&tv, nullptr);
-  now = time(nullptr);
-  // human readable
-  Serial.print("ctime:     ");
-  Serial.print(ctime(&now));
-
-}
 
 void time_is_set_scheduled() {
   // everything is allowed in this function
@@ -321,16 +404,27 @@ void time_is_set_scheduled() {
     }
     settimeofday(&tv, nullptr);
   } else {
-    showTime();
+      gettimeofday(&tv, nullptr);
+      now = time(nullptr);
+      // human readable
+      Serial.print("ctime:     ");
+      Serial.print(ctime(&now));
   }
 }
 
 int getKeys(void){
     //Set按键按下
+    int i=0;
     if(digitalRead(D7) == HIGH){
       delay(5);
       if(digitalRead(D7) == HIGH){
-        while(digitalRead(D7) == HIGH);
+        while(digitalRead(D7) == HIGH){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
         return SET_KEY;
       }
     }
@@ -338,7 +432,13 @@ int getKeys(void){
      if(digitalRead(D6) == LOW){
       delay(5);
       if(digitalRead(D6) == LOW){
-        while(digitalRead(D6) == LOW);
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
         return UP_KEY;
       }
     }
@@ -346,7 +446,13 @@ int getKeys(void){
      if(digitalRead(D5) == LOW){
       delay(5);
       if(digitalRead(D5) == LOW){
-        while(digitalRead(D5) == LOW);
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
         return DOWN_KEY;
       }
     }
@@ -358,7 +464,7 @@ void doKeysFunction(void){
   int keys = getKeys();
   if(keys == SET_KEY){
     uiFrameIndex++;
-    if(uiFrameIndex == 3)
+    if(uiFrameIndex == 4)
         uiFrameIndex = 0;     
     ui.switchToFrame(uiFrameIndex);
   }

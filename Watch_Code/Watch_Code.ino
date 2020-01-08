@@ -33,6 +33,8 @@ char *now_text = "Sunny";
 char *now_code = "0";
 char *now_temperature = "27";
 
+//
+
 
 // 网络时间
 // initial time (possibly given by an external RTC)
@@ -76,7 +78,6 @@ void drawProgress(OLEDDisplay *display, int percentage, String label);
 //初始数据获取
 void updateData(OLEDDisplay *display);
 //时间日期获取
-void getCurrentTime(void);
 void time_is_set_scheduled(void);
 //按键函数
 void doKeysFunction(void);
@@ -92,14 +93,15 @@ void GetForecastWeather(void);
 void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
+void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void drawHeaderOverlay(OLEDDisplay *display, OLEDDisplayUiState* state);
 
 // Add frames
 // this array keeps function pointers to all frames
 // frames are the single views that slide from right to left
-FrameCallback frames[] = { draw_MeunFram,draw_ClockFram,draw_WeatherFram,draw_SetFram};
-int numberOfFrames = 4;
+FrameCallback frames[] = { draw_MeunFram,draw_ClockFram,draw_WeatherFram,draw_MqttFram,draw_SetFram};
+int numberOfFrames = 5;
 
 OverlayCallback overlays[] = { drawHeaderOverlay };
 int numberOfOverlays = 1;
@@ -110,6 +112,17 @@ void setup() {
   Serial.begin(115200);
   Serial.println();
   Serial.println();
+  
+  // setup RTC time   
+  // it will be used until NTP server will send us real current time
+  time_t rtc = RTC_UTC_TEST;
+  timeval tv = { rtc, 0 };
+  timezone tz = { 0, 0 };
+  settimeofday(&tv, &tz);
+  settimeofday_cb(time_is_set_scheduled);
+  configTime(MYTZ, "pool.ntp.org");
+  //sntp_servermode_dhcp(0);//关闭
+
   
   // initialize dispaly
   display.init();
@@ -209,53 +222,65 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
 }
 //天气告知界面
 void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  int WeatherCode=0;
+  int WeatherCode=99;//默认为未知
   String temp = String(now_code);
   WeatherCode = temp.toInt();//转成成整形
+  
+
+  
   switch(WeatherCode){
     case 0: case 1: case 2:
     case 3: display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);  break;
-    case 4: display->drawXbm(0, 6, Icon_width, Icon_height, Cloudy_Icon_bits); break;
-    case 5: case 6: case 7:
+    
+    case 4: case 5: case 6: case 7:
     case 8: display->drawXbm(0, 6, Icon_width, Icon_height, Partly_Cloudy_Icon_bits);break;
-    case 9:break;
-    case 10:break;
-    case 11:break;
-    case 12:break;
-    case 13:break;
-    case 14:break;
-    case 15:break;
-    case 16:break;
-    case 17:break;
-    case 18:break;
-    case 19:break;
-    case 20:break;
-    case 21:break;
-    case 22:break;
-    case 23:break;
-    case 24:break;
-    case 25:break;
-    case 26:break;
-    case 27:break;
-    case 28:break;
-    case 29:break;
-    case 30:break;
-    case 31:break;
-    case 32:break;
-    case 33:break;
-    case 34:break;
-    case 35:break;
-    case 36:break;
-    case 37:break;
-    case 38:break;
-    case 99:break;
+    
+    case 9: display->drawXbm(0, 6, Icon_width, Icon_height, Overcast_Icon_bits); break;
+   
+    case 11: display->drawXbm(0, 6, Icon_width, Icon_height, Thundershower_Icon_bits); break;
+    
+    case 12: display->drawXbm(0, 6, Icon_width, Icon_height, Hail_Icon_bits); break;
+    
+    case 10: case 13: case 14: case 15: case 16: case 17: case 18:
+    case 19: display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); break;
+    
+    case 20: display->drawXbm(0, 6, Icon_width, Icon_height, Sleet_Icon_bits); break;
+    
+    case 21: case 22: case 23: case 24:
+    case 25: display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits); break;
+    
+    case 26: case 27: case 28:
+    case 29: display->drawXbm(0, 6, Icon_width, Icon_height, Duststorm_Icon_bits); break;
+    
+    case 30: case 31: case 32: case 33: case 34: case 35:
+    case 36: display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);break;
+    
+    case 37:display->drawXbm(0, 6, Icon_width, Icon_height, Cold_Icon_bits);break;
+    
+    case 38:display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);break;
+    
+    case 99:  
+      display->setColor(WHITE);
+      display->setFont(ArialMT_Plain_24);
+      display->setTextAlignment(TEXT_ALIGN_LEFT);
+      display->drawString(0, 15, "N");
+      display->drawString(18, 20, "/A");
+      break;
   }
   
 }
 
 
 void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
- 
+  display->drawXbm(0, 8, Icon_width, Icon_height, Set_Icon_bits);//闹钟图标
+}
+
+
+void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y){
+  display->drawXbm(0, 8, Icon_width, Icon_height, Home_Icon_bits);//闹钟图标
+
+
+  
 }
 
 //底层界面，包括显示时间，当天气温
@@ -310,7 +335,7 @@ void GetCurrentWeather(void)
     if(client.connect(host, httpPort)==1)                 
     {     
         //主要格式                                        
-        client.print("GET /v3/weather/now.json?key=smtq3n0ixdggurox&location=Lanzhou&language=en&unit=c HTTP/1.1\r\nHost:api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
+        client.print("GET /v3/weather/now.json?key=S0z2fnApuw-q9soOI&location=Lanzhou&language=en&unit=c HTTP/1.1\r\nHost:api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
         String status_code = client.readStringUntil('\r');        //读取GET数据，服务器返回的状态码，若成功则返回状态码200
         Serial.println(status_code);
         if(client.find("\r\n\r\n")==1)                            //跳过返回的数据头，直接读取后面的JSON数据，
@@ -325,8 +350,9 @@ void GetCurrentWeather(void)
         delay(5000);                                            //请求失败等5秒
     } 
                               
-    const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + 2*JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 210;
-    DynamicJsonDocument jsonBuffer(capacity);
+    //const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + 2*JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 210;
+    //DynamicJsonDocument jsonBuffer(capacity);
+    DynamicJsonDocument jsonBuffer(500);
     // Parse JSON object
     //将天气数据放入jsonBuffer
     DeserializationError error = deserializeJson(jsonBuffer, json_from_server);
@@ -357,8 +383,59 @@ void GetCurrentWeather(void)
     client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开   
 }
 
+
+//获取未来三天的天气信息
 void GetForecastWeather(void)  
 {
+    String json_from_server; 
+    if(client.connect(host, httpPort)==1)                 
+    {     
+        client.print("GET /v3/weather/daily.json?key=cinm0okk7gzgtujn&location=lanzhou&language=en&unit=c&start=0&days=4 HTTP/1.1\r\nHost: api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
+        String status_code = client.readStringUntil('\r');        //读取GET数据，服务器返回的状态码，若成功则返回状态码200
+        Serial.println(status_code);
+        if(client.find("\r\n\r\n")==1)                            //跳过返回的数据头，直接读取后面的JSON数据，
+        {
+          json_from_server=client.readStringUntil('\n');  //读取返回的JSON数据
+          Serial.println(json_from_server);
+        }
+    }
+    else                                        
+    { 
+        Serial.println("connection failed this time");
+        delay(5000);                                            //请求失败等5秒
+    } 
+                              
+    //const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + 2*JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 210;
+    //DynamicJsonDocument jsonBuffer(capacity);
+    DynamicJsonDocument jsonBuffer(500);
+    // Parse JSON object
+    //将天气数据放入jsonBuffer
+    DeserializationError error = deserializeJson(jsonBuffer, json_from_server);
+    if (error) {
+      Serial.print(F("deserializeJson() failed: "));
+      Serial.println(error.c_str());
+      return;
+    }
+    //以下代码分别提取地区，当前天气，代码，及湿度
+    Serial.println("Start Decode:");
+    strcpy(location_name,jsonBuffer["results"][0]["location"]["name"]);
+    strcpy(now_text,jsonBuffer["results"][0]["now"]["text"]);
+    strcpy(now_code,jsonBuffer["results"][0]["now"]["code"]);
+    strcpy(now_temperature,jsonBuffer["results"][0]["now"]["temperature"]);
+     //通过串口打印出需要的信息
+    Serial.print("location_name:");
+    Serial.println(location_name); 
+                        
+    Serial.print("text:");
+    Serial.println(now_text);
+   
+    Serial.print("code:");
+    Serial.println(now_code);
+
+    Serial.print("temperature:");
+    Serial.println(now_temperature);
+ 
+    client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开   
     
    
 }
@@ -377,21 +454,13 @@ void drawProgress(OLEDDisplay *display, int percentage, String label) {
 
 
 void getCurrentTime(void){
-  // setup RTC time   
-  // it will be used until NTP server will send us real current time
-  time_t rtc = RTC_UTC_TEST;
-  timeval tv = { rtc, 0 };
-  timezone tz = { 0, 0 };
-  settimeofday(&tv, &tz);
-  settimeofday_cb(time_is_set_scheduled);
-  configTime(MYTZ, "pool.ntp.org");
-  delay(3000);//等待获取完成
+
 
 }
 
 void updateData(OLEDDisplay *display) {
   drawProgress(display, 10, "Updating time...");
-  getCurrentTime();
+  delay(2000);
 
   drawProgress(display, 30, "Updating weather...");
   GetCurrentWeather();
@@ -497,7 +566,7 @@ void doKeysFunction(void){
   int keys = getKeys();
   if(keys == SET_KEY){
     uiFrameIndex++;
-    if(uiFrameIndex == 4)
+    if(uiFrameIndex == 5)
         uiFrameIndex = 0;     
     ui.switchToFrame(uiFrameIndex);
   }

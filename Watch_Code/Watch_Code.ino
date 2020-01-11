@@ -16,8 +16,9 @@
 #include "SSD1306Wire.h"
 #include "OLEDDisplayUi.h"
 //图片有关库
-#include "WeatherStationFonts.h"
+
 #include "WeatherStationImages.h"
+#include "font.h"
 
 // WIFI账号和密码
 const char* WIFI_SSID = "CMCC-9Nkm";
@@ -27,14 +28,19 @@ const char* WIFI_PWD = "Pm54j#Pm";
 WiFiClient client;//创建网络对象
 const int httpPort = 80;
 const char* host = "api.seniverse.com";
+int WeatherFlag=0;
 //定义当日天气变量
 char *location_name = "Lanzhou";
-char *now_text = "Sunny";
-char *now_code = "0";
-char *now_temperature = "27";
+char *now_temperature = "24";
 
-//
+char *forcast_code1 = "37";
+char *forcast_temperaturerange1 ="20/-15";
 
+char *forcast_code2 = "38";
+char *forcast_temperaturerange2 ="20/-16";
+
+char *forcast_code3 = "99";
+char *forcast_temperaturerange3 ="20/-17";
 
 // 网络时间
 // initial time (possibly given by an external RTC)
@@ -86,7 +92,7 @@ int getKeys(void);
 void GetCurrentWeather(void);
 //获取未来三天的天气
 void GetForecastWeather(void);
-
+void Gui_DrawFont_GBK16(uint8_t x, uint8_t y, char *s);
 
 //五个界面框架
 //主界面框架
@@ -152,6 +158,7 @@ void setup() {
   digitalWrite(D0, HIGH);// 灭灯
   delay(2000);
   int counter = 0;
+  
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -206,12 +213,32 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
   String date = WDAY_NAMES[timeInfo->tm_wday];
 
   sprintf_P(buff, PSTR("%s, %02d/%02d/%04d"), WDAY_NAMES[timeInfo->tm_wday].c_str(), timeInfo->tm_mday, timeInfo->tm_mon+1, timeInfo->tm_year + 1900);
-  display->drawString(64 + x, 5 + y, String(buff));
+  display->drawString(44 + x, 5 + y, String(buff));
   display->setFont(ArialMT_Plain_24);
 
   sprintf_P(buff, PSTR("%02d:%02d:%02d"), timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec);
-  display->drawString(64 + x, 15 + y, String(buff));
+  display->drawString(44 + x, 15 + y, String(buff));
   display->setTextAlignment(TEXT_ALIGN_LEFT);
+
+  display->drawXbm(98, 0, 10, 8,WIFI); 
+  display->drawXbm(112, 0, 16, 9,Power[0]); 
+
+  String temperature = String(now_temperature);
+  int temp=temperature.toInt();
+  if (temp<0){
+    temp=-temp;
+    if(temp>0 && temp<10) display->drawXbm(100, 12, 10, 40, Figure[10]);
+    if(temp>=10)          display->drawXbm(90, 12, 10, 40, Figure[10]);
+    }
+  if(temp>0 && temp<10)
+      display->drawXbm(110, 12, 10, 40, Figure[temp]); 
+    else if(temp>=10){
+      display->drawXbm(100, 12, 10, 40,Figure[temp/10]);
+      display->drawXbm(110, 12, 10, 40, Figure[temp%10]);
+    }
+    display->drawXbm(120, 14, 8, 8, thermometer);
+ 
+  
 }
 
 //事务闹钟界面
@@ -222,51 +249,299 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
 }
 //天气告知界面
 void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  int WeatherCode=99;//默认为未知
-  String temp = String(now_code);
+  int WeatherCode=0;//默认为未知
+  String temp="";
+  
+  display->setColor(WHITE);
+  display->setFont(DialogInput_bold_12);//设置字体
+  if(WeatherFlag==0){
+    temp = String(forcast_code1);
+    display->drawXbm(40, 0, 16, 16, hz16[0]);//今
+    display->drawString(110, 38, String(forcast_temperaturerange1));
+  }
+      
+  else if(WeatherFlag==1){
+    temp = String(forcast_code2);
+    display->drawXbm(40, 0, 16, 16, hz16[1]);//明
+    display->drawString(110, 38, String(forcast_temperaturerange2));
+    
+  }
+      
+  else if(WeatherFlag==2){
+     temp = String(forcast_code3);
+     display->drawXbm(40, 0, 16, 16, hz16[2]);//后
+     display->drawString(110, 38, String(forcast_temperaturerange3));
+    
+  }
+     
+  //显示预报的日期、天气情况、温度范围
+  display->drawXbm(56, 0, 16, 16, hz16[3]);//天
+  display->drawString(120, 2, String(location_name));
+ 
+  display->drawXbm(40, 36, 16, 16, hz16[4]);//温
+  display->drawXbm(56, 36, 16, 16, hz16[5]);//度
+  
+  //display->drawXbm(55, 30, 10, 20, thermometer_Icon_bits); //显示温度计计图标
+ 
+      
   WeatherCode = temp.toInt();//转成成整形
-  
-
-  
   switch(WeatherCode){
-    case 0: case 1: case 2:
-    case 3: display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);  break;
+    case 0:
+        display->drawString(100,18,"(Sunny)");
+        display->drawXbm(100, 18, 16, 16, hz16[6]);//晴
+        display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);
+    break;
     
-    case 4: case 5: case 6: case 7:
-    case 8: display->drawXbm(0, 6, Icon_width, Icon_height, Partly_Cloudy_Icon_bits);break;
+    case 1:
+        display->drawString(100,18,"(Clear)");
+        display->drawXbm(100, 18, 16, 16, hz16[6]);//晴
+        display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);
+    break;
     
-    case 9: display->drawXbm(0, 6, Icon_width, Icon_height, Overcast_Icon_bits); break;
-   
-    case 11: display->drawXbm(0, 6, Icon_width, Icon_height, Thundershower_Icon_bits); break;
+    case 2:
+    case 3:
+        display->drawString(100,18,"(Fair)");
+        display->drawXbm(100, 18, 16, 16, hz16[6]);//晴
+        display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);
+        break;
     
-    case 12: display->drawXbm(0, 6, Icon_width, Icon_height, Hail_Icon_bits); break;
+    case 4: 
+        display->drawXbm(56, 18, 16, 16, hz16[8]);//多
+        display->drawXbm(72, 18, 16, 16, hz16[9]);//云
+        display->drawXbm(0, 6, Icon_width, Icon_height, Partly_Cloudy_Icon_bits);
+        break; 
+        
+        
+    case 5: case 6:
+      display->drawXbm(50, 18, 16, 16, hz16[6]);//晴
+      display->drawXbm(66, 18, 16, 16, hz16[7]);//间
+      display->drawXbm(82, 18, 16, 16, hz16[8]);//多
+      display->drawXbm(98, 18, 16, 16, hz16[9]);//云
+      display->drawXbm(0, 6, Icon_width, Icon_height, Partly_Cloudy_Icon_bits);
+    break;
     
-    case 10: case 13: case 14: case 15: case 16: case 17: case 18:
-    case 19: display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); break;
+    case 7:
+    case 8:
+      display->drawXbm(50, 18, 16, 16, hz16[10]);//大
+      display->drawXbm(66, 18, 16, 16, hz16[13]);//部
+      display->drawXbm(82, 18, 16, 16, hz16[8]);//多
+      display->drawXbm(98, 18, 16, 16, hz16[9]);//云
+      display->drawXbm(0, 6, Icon_width, Icon_height, Partly_Cloudy_Icon_bits);
+    break;
     
-    case 20: display->drawXbm(0, 6, Icon_width, Icon_height, Sleet_Icon_bits); break;
+    case 9:
+      display->drawString(110,18,"(Overcast)");
+      display->drawXbm(110, 18, 16, 16, hz16[14]);//阴
+      display->drawXbm(0, 6, Icon_width, Icon_height, Overcast_Icon_bits); 
+      break;
+
+    case 10: 
+      display->drawXbm(56, 18, 16, 16, hz16[16]);//阵
+      display->drawXbm(72, 18, 16, 16, hz16[17]);//雨
+      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits);
+    break;
+
     
-    case 21: case 22: case 23: case 24:
-    case 25: display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits); break;
+    case 11: 
+      display->drawXbm(60, 18, 16, 16, hz16[15]);//雷
+      display->drawXbm(76, 18, 16, 16, hz16[16]);//阵
+      display->drawXbm(92, 18, 16, 16, hz16[17]);//雨
+      display->drawXbm(0, 6, Icon_width, Icon_height, Thundershower_Icon_bits);
+    break;
     
-    case 26: case 27: case 28:
-    case 29: display->drawXbm(0, 6, Icon_width, Icon_height, Duststorm_Icon_bits); break;
+    case 12: 
+      display->drawXbm(40, 18, 16, 16, hz16[15]);//雷
+      display->drawXbm(54, 18, 16, 16, hz16[16]);//阵
+      display->drawXbm(68, 18, 16, 16, hz16[17]);//雨
+      display->drawXbm(82, 18, 16, 16, hz16[18]);//加
+      display->drawXbm(96, 18, 16, 16, hz16[19]);//冰
+      display->drawXbm(110, 18, 16, 16, hz16[20]);//雹
+      display->drawXbm(0, 6, Icon_width, Icon_height, Hail_Icon_bits); 
+    break;
     
-    case 30: case 31: case 32: case 33: case 34: case 35:
-    case 36: display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);break;
+    case 13:
+      display->drawXbm(56, 18, 16, 16, hz16[12]);//小
+      display->drawXbm(72, 18, 16, 16, hz16[17]);//雨
+      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+    break;
     
-    case 37:display->drawXbm(0, 6, Icon_width, Icon_height, Cold_Icon_bits);break;
+    case 14:  
+      display->drawXbm(56, 18, 16, 16, hz16[11]);//中
+      display->drawXbm(72, 18, 16, 16, hz16[17]);//雨
+      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+    break;
+
     
-    case 38:display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);break;
+    case 15: 
+      display->drawXbm(56, 18, 16, 16, hz16[10]);//大
+      display->drawXbm(72, 18, 16, 16, hz16[17]);//雨
+      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+    break;
+
     
-    case 99:  
-      display->setColor(WHITE);
-      display->setFont(ArialMT_Plain_24);
-      display->setTextAlignment(TEXT_ALIGN_LEFT);
-      display->drawString(0, 15, "N");
-      display->drawString(18, 20, "/A");
+    case 16: 
+      display->drawXbm(56, 18, 16, 16, hz16[33]);//暴
+      display->drawXbm(72, 18, 16, 16, hz16[17]);//雨
+      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+    break;
+
+    
+    case 17:
+      display->drawXbm(60, 18, 16, 16, hz16[10]);//大
+      display->drawXbm(76, 18, 16, 16, hz16[33]);//暴
+      display->drawXbm(92, 18, 16, 16, hz16[17]);//雨
+      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+    break;
+
+    
+    case 18:       
+      display->drawXbm(50, 18, 16, 16, hz16[41]);//特
+      display->drawXbm(60, 18, 16, 16, hz16[10]);//大
+      display->drawXbm(76, 18, 16, 16, hz16[33]);//暴
+      display->drawXbm(92, 18, 16, 16, hz16[17]);//雨
+      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+    break;
+
+
+    
+    case 19:
+      display->drawXbm(56, 18, 16, 16, hz16[34]);//冻
+      display->drawXbm(72, 18, 16, 16, hz16[17]);//雨 
+      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+    break;
+    
+    case 20:
+      display->drawXbm(60, 18, 16, 16, hz16[17]);//雨
+      display->drawXbm(76, 18, 16, 16, hz16[35]);//夹
+      display->drawXbm(92, 18, 16, 16, hz16[36]);//雪 
+      display->drawXbm(0, 6, Icon_width, Icon_height, Sleet_Icon_bits); 
+    break;
+    
+    case 21: 
+      display->drawXbm(56, 18, 16, 16, hz16[16]);//阵
+      display->drawXbm(72, 18, 16, 16, hz16[36]);//雪 
+      display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits);
+    break;
+
+    
+    case 22: 
+      display->drawXbm(56, 18, 16, 16, hz16[12]);//小
+      display->drawXbm(72, 18, 16, 16, hz16[36]);//雪 
+      display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits); 
+    break;
+    
+    case 23:
+      display->drawXbm(56, 18, 16, 16, hz16[11]);//中
+      display->drawXbm(72, 18, 16, 16, hz16[36]);//雪 
+      display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits); 
+    break;
+    
+    case 24:
+      display->drawXbm(56, 18, 16, 16, hz16[10]);//大
+      display->drawXbm(72, 18, 16, 16, hz16[36]);//雪 
+      display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits); 
+    break;
+    
+    case 25: 
+      display->drawXbm(56, 18, 16, 16, hz16[33]);//暴
+      display->drawXbm(72, 18, 16, 16, hz16[36]);//雪 
+      display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits); 
+    break;
+    
+    case 26:
+      display->drawXbm(56, 18, 16, 16, hz16[21]);//浮
+      display->drawXbm(72, 18, 16, 16, hz16[22]);//尘
+      display->drawXbm(0, 6, Icon_width, Icon_height, Duststorm_Icon_bits); 
+    break;
+
+
+    
+    case 27:
+      display->drawXbm(56, 18, 16, 16, hz16[23]);//扬
+      display->drawXbm(72, 18, 16, 16, hz16[24]);//沙
+      display->drawXbm(0, 6, Icon_width, Icon_height, Duststorm_Icon_bits); 
+    break;
+
+    
+    case 28:
+      display->drawXbm(60, 18, 16, 16, hz16[24]);//沙
+      display->drawXbm(76, 18, 16, 16, hz16[22]);//尘
+      display->drawXbm(92, 18, 16, 16, hz16[33]);//暴
+      display->drawXbm(0, 6, Icon_width, Icon_height, Duststorm_Icon_bits); 
+    break;
+    
+    case 29: 
+      display->drawXbm(50, 18, 16, 16, hz16[25]);//强
+      display->drawXbm(60, 18, 16, 16, hz16[24]);//沙
+      display->drawXbm(76, 18, 16, 16, hz16[22]);//尘
+      display->drawXbm(92, 18, 16, 16, hz16[33]);//暴
+      display->drawXbm(0, 6, Icon_width, Icon_height, Duststorm_Icon_bits); 
+    break;
+    
+    case 30:
+      display->drawString(100,18,"(Foggy)");
+      display->drawXbm(100, 18, 16, 16, hz16[28]);//雾
+      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+    break;
+    
+    case 31:
+      display->drawString(100,18,"(Haze)");
+      display->drawXbm(100, 18, 16, 16, hz16[29]);//霾
+      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+    break;
+    
+    case 32:
+      display->drawString(100,18,"(Windy)");
+      display->drawXbm(100, 18, 16, 16, hz16[27]);//风
+      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+    break;
+    
+    case 33:
+      display->drawXbm(56, 18, 16, 16, hz16[10]);//大
+      display->drawXbm(72, 18, 16, 16, hz16[27]);//风
+      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+    break;
+    
+    case 34:
+      display->drawXbm(56, 18, 16, 16, hz16[30]);//飓
+      display->drawXbm(72, 18, 16, 16, hz16[27]);//风
+      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+    break;
+    
+    case 35:
+      display->drawXbm(50, 18, 16, 16, hz16[38]);//热
+      display->drawXbm(60, 18, 16, 16, hz16[26]);//带
+      display->drawXbm(76, 18, 16, 16, hz16[27]);//风
+      display->drawXbm(92, 18, 16, 16, hz16[33]);//暴
+      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+    break;
+    
+    case 36:
+      display->drawXbm(60, 18, 16, 16, hz16[31]);//龙
+      display->drawXbm(76, 18, 16, 16, hz16[32]);//卷
+      display->drawXbm(92, 18, 16, 16, hz16[27]);//风
+      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+    break;
+    
+    case 37:
+      display->drawString(100,18,"(Cold)");
+      display->drawXbm(100, 18, 16, 16, hz16[37]);//冷
+      display->drawXbm(0, 6, Icon_width, Icon_height, Cold_Icon_bits);
+    break;
+    
+    case 38:
+      display->drawString(100,18,"(Hot)");
+      display->drawXbm(100, 18, 16, 16, hz16[38]);//热
+      display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);
+    break;
+    
+    case 99: 
+      display->drawXbm(0, 6, Icon_width, Icon_height, Unkonwn_Icon_bits);
+      display->drawXbm(56, 18, 16, 16, hz16[39]);//未
+      display->drawXbm(72, 18, 16, 16, hz16[40]);//知
       break;
   }
+  display->drawXbm(112, 36, 16, 16, Temperature_Icon_bits);
   
 }
 
@@ -296,8 +571,10 @@ void drawHeaderOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
   display->setTextAlignment(TEXT_ALIGN_LEFT);
   display->drawString(0, 54, String(buff));
   display->setTextAlignment(TEXT_ALIGN_RIGHT);
-  String temp = String(now_temperature)  +  "°C";
-  display->drawString(128, 54, temp);
+  
+  String mtemp = String("100")  +  "%";
+  display->drawString(128, 54, mtemp);
+  
   display->drawHorizontalLine(0, 52, 128);
 }
 
@@ -347,7 +624,7 @@ void GetCurrentWeather(void)
     else                                        
     { 
         Serial.println("connection failed this time");
-        delay(5000);                                            //请求失败等5秒
+        delay(1000);                                            //请求失败等5秒
     } 
                               
     //const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + 2*JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 210;
@@ -364,18 +641,19 @@ void GetCurrentWeather(void)
     //以下代码分别提取地区，当前天气，代码，及湿度
     Serial.println("Start Decode:");
     strcpy(location_name,jsonBuffer["results"][0]["location"]["name"]);
-    strcpy(now_text,jsonBuffer["results"][0]["now"]["text"]);
-    strcpy(now_code,jsonBuffer["results"][0]["now"]["code"]);
+    //strcpy(now_text,jsonBuffer["results"][0]["now"]["text"]);
+    //strcpy(now_code,jsonBuffer["results"][0]["now"]["code"]);
     strcpy(now_temperature,jsonBuffer["results"][0]["now"]["temperature"]);
-     //通过串口打印出需要的信息
+    //通过串口打印出需要的信息
+    Serial.println("Today's Weather");
     Serial.print("location_name:");
     Serial.println(location_name); 
                         
-    Serial.print("text:");
-    Serial.println(now_text);
+    //Serial.print("text:");
+    //Serial.println(now_text);
    
-    Serial.print("code:");
-    Serial.println(now_code);
+    //Serial.print("code:");
+    //Serial.println(now_code);
 
     Serial.print("temperature:");
     Serial.println(now_temperature);
@@ -402,13 +680,10 @@ void GetForecastWeather(void)
     else                                        
     { 
         Serial.println("connection failed this time");
-        delay(5000);                                            //请求失败等5秒
+        delay(1000);                                            //请求失败等5秒
     } 
-                              
-    //const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + 2*JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 210;
-    //DynamicJsonDocument jsonBuffer(capacity);
-    DynamicJsonDocument jsonBuffer(500);
-    // Parse JSON object
+    //1600字节是因为https://arduinojson.org/v6/api/json/deserializejson/                        
+    DynamicJsonDocument jsonBuffer(2000);
     //将天气数据放入jsonBuffer
     DeserializationError error = deserializeJson(jsonBuffer, json_from_server);
     if (error) {
@@ -417,27 +692,59 @@ void GetForecastWeather(void)
       return;
     }
     //以下代码分别提取地区，当前天气，代码，及湿度
-    Serial.println("Start Decode:");
-    strcpy(location_name,jsonBuffer["results"][0]["location"]["name"]);
-    strcpy(now_text,jsonBuffer["results"][0]["now"]["text"]);
-    strcpy(now_code,jsonBuffer["results"][0]["now"]["code"]);
-    strcpy(now_temperature,jsonBuffer["results"][0]["now"]["temperature"]);
-     //通过串口打印出需要的信息
-    Serial.print("location_name:");
-    Serial.println(location_name); 
-                        
-    Serial.print("text:");
-    Serial.println(now_text);
-   
-    Serial.print("code:");
-    Serial.println(now_code);
-
-    Serial.print("temperature:");
-    Serial.println(now_temperature);
- 
-    client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开   
     
-   
+      char *Localtemp="000";//临时变量    
+      //strcpy(forcast_date1,jsonBuffer["results"][0]["daily"][0]["date"]); //明天的日期
+      //Serial.println("forcast_date1:");
+      //Serial.println(forcast_date1);
+      //strcpy(forcast_text1,jsonBuffer["results"][0]["daily"][0]["text_day"]); //明天天气现象
+      //Serial.println("forcast_text1:");
+      //Serial.println(forcast_text1);
+      strcpy(forcast_code1,jsonBuffer["results"][0]["daily"][0]["code_day"]); //明天天气代码
+      Serial.println("forcast_code1:");
+      Serial.println(forcast_code1);
+      strcpy(forcast_temperaturerange1,jsonBuffer["results"][0]["daily"][0]["high"]); //明天最高温度
+      strcpy(Localtemp,jsonBuffer["results"][0]["daily"][0]["low"]); //明天最低温度
+      strcat(forcast_temperaturerange1,"/"); //连接两个字符串
+      strcat(forcast_temperaturerange1,Localtemp);
+      Serial.println("forcast_temperaturerange1:");
+      Serial.println(forcast_temperaturerange1);
+
+      //strcpy(forcast_date2,jsonBuffer["results"][0]["daily"][1]["date"]); //明天的日期
+      //Serial.println("forcast_date2:");
+      //Serial.println(forcast_date2);
+      //strcpy(forcast_text2,jsonBuffer["results"][0]["daily"][1]["text_day"]); //明天天气现象
+      //Serial.println("forcast_text2:");
+      //Serial.println(forcast_text2);
+      strcpy(forcast_code2,jsonBuffer["results"][0]["daily"][1]["code_day"]); //明天天气代码
+      Serial.println("forcast_code2:");
+      Serial.println(forcast_code2);
+      strcpy(forcast_temperaturerange2,jsonBuffer["results"][0]["daily"][1]["high"]); //明天最高温度
+      strcpy(Localtemp,jsonBuffer["results"][0]["daily"][1]["low"]); //明天最低温度
+      strcat(forcast_temperaturerange2,"/"); //连接两个字符串
+      strcat(forcast_temperaturerange2,Localtemp);
+      Serial.println("forcast_temperaturerange2:");
+      Serial.println(forcast_temperaturerange2);
+
+
+      //strcpy(forcast_date3,jsonBuffer["results"][0]["daily"][2]["date"]); //明天的日期
+      //Serial.println("forcast_date3:");
+      //Serial.println(forcast_date3);
+      //strcpy(forcast_text3,jsonBuffer["results"][0]["daily"][2]["text_day"]); //明天天气现象
+      //Serial.println("forcast_text3:");
+      //Serial.println(forcast_text3);
+      strcpy(forcast_code3,jsonBuffer["results"][0]["daily"][2]["code_day"]); //明天天气代码
+      Serial.println("forcast_code3:");
+      Serial.println(forcast_code3);
+      strcpy(forcast_temperaturerange3,jsonBuffer["results"][0]["daily"][2]["high"]); //明天最高温度
+      strcpy(Localtemp,jsonBuffer["results"][0]["daily"][2]["low"]); //明天最低温度
+      strcat(forcast_temperaturerange3,"/"); //连接两个字符串
+      strcat(forcast_temperaturerange3,Localtemp);
+      Serial.println("forcast_temperaturerange3:");
+      Serial.println(forcast_temperaturerange3);
+    
+      client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开   
+    
 }
 
 
@@ -452,19 +759,12 @@ void drawProgress(OLEDDisplay *display, int percentage, String label) {
   display->display();
 }
 
-
-void getCurrentTime(void){
-
-
-}
-
 void updateData(OLEDDisplay *display) {
   drawProgress(display, 10, "Updating time...");
-  delay(2000);
-
+  //GetCurrentWeather();//获取当天天气
   drawProgress(display, 30, "Updating weather...");
-  GetCurrentWeather();
-
+  //GetForecastWeather();//获取未来三天的天气
+  
   drawProgress(display, 50, "Updating forecasts...");
 
 
@@ -571,8 +871,18 @@ void doKeysFunction(void){
     ui.switchToFrame(uiFrameIndex);
   }
   if(keys == UP_KEY){
+    if(uiFrameIndex==2){
+        WeatherFlag++;
+        if(WeatherFlag==3)
+            WeatherFlag=0;  
+      }
+    
   }
   if(keys == DOWN_KEY){
-    
+    if(uiFrameIndex==2){
+        WeatherFlag--; 
+        if(WeatherFlag<0)
+            WeatherFlag=2;     
+      }
   }
 }

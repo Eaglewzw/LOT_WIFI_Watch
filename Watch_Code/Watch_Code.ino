@@ -20,12 +20,14 @@
 #include "WeatherStationImages.h"
 #include "font.h"
 
+//MQTT
+#include <PubSubClient.h>
+
 // WIFI账号和密码
 const char* WIFI_SSID = "CMCC-9Nkm";
 const char* WIFI_PWD = "Pm54j#Pm";
 
 //访问心知天气的网站，获取天气数据
-WiFiClient client;//创建网络对象
 const int httpPort = 80;
 const char* host = "api.seniverse.com";
 int WeatherFlag=0;
@@ -41,6 +43,20 @@ char *forcast_temperaturerange2 ="20/-16";
 
 char *forcast_code3 = "99";
 char *forcast_temperaturerange3 ="20/-17";
+
+
+//MQTT部分
+const char* mqtt_server = "39.105.5.215";
+const char* topic_name = "Eagle_SmartHome";//订阅的主题
+long lastMsg = 0;
+char msg[50]="Eagle Here!";//用于存放发送的字符
+int value = 0;
+
+
+//闹钟
+int Clock_1_Hour=6,Clock_1_Minute=0;//第一个事务闹钟
+int Clock_2_Hour=7,Clock_2_Minute=0;//第一个事务闹钟
+int Clock_3_Hour=8,Clock_3_Minute=0;//第一个事务闹钟
 
 // 网络时间
 // initial time (possibly given by an external RTC)
@@ -67,7 +83,7 @@ const int SDC_PIN = D2;
 #endif
 
 
-//Key Settings
+//键值设定
 #define SET_KEY 1
 #define UP_KEY  2
 #define DOWN_KEY 3
@@ -93,6 +109,9 @@ void GetCurrentWeather(void);
 //获取未来三天的天气
 void GetForecastWeather(void);
 void Gui_DrawFont_GBK16(uint8_t x, uint8_t y, char *s);
+
+//MQTT
+void callback(char* topic, byte* payload, unsigned int length);
 
 //五个界面框架
 //主界面框架
@@ -145,6 +164,7 @@ void setup() {
   pinMode(D5,INPUT);//Down按键
   pinMode(D6,INPUT);//Up按键
   pinMode(D7,INPUT);//Set按键
+  pinMode(BUILTIN_LED, OUTPUT);  //WIFI模块上的蓝灯
   
   WiFi.begin(WIFI_SSID, WIFI_PWD);
   display.drawXbm(0, 0, WiFi_Logo_width, WiFi_Logo_height, LOT_Watch_Logo_bits);
@@ -187,6 +207,7 @@ void setup() {
   Serial.println("");
   Serial.println("");
   updateData(&display);
+
 }
 
 void loop() {
@@ -243,8 +264,25 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
 
 //事务闹钟界面
 void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  char Clock_1[10];
+  char Clock_2[10];
+  char Clock_3[10];
+  display->drawVerticalLine(42, 0, 52);
+  display->setTextAlignment(TEXT_ALIGN_CENTER);
+  display->setFont(DialogInput_bold_12);
+  
   display->drawXbm(0, 8, Icon_width, Icon_height, Clock_Icon_bits);//闹钟图标
+  sprintf_P(Clock_1, PSTR("%02d:%02d"), Clock_1_Hour,Clock_1_Minute);
+  sprintf_P(Clock_2, PSTR("%02d:%02d"), Clock_2_Hour,Clock_2_Minute);
+  sprintf_P(Clock_3, PSTR("%02d:%02d"), Clock_3_Hour,Clock_3_Minute);
   //设置三个事务闹钟
+  display->drawString(72, 0,  String(Clock_1));
+  display->drawString(72, 18, String(Clock_2));
+  display->drawString(72, 36, String(Clock_3));
+  display->drawXbm(94, 0, 32, 16,Close_Icon);//关
+  display->drawXbm(94, 18, 32, 16,Close_Icon);//关
+  display->drawXbm(94, 36, 32, 16,Close_Icon);//关
+  display->drawXbm(46, 4, 8, 8,Pointer_Icon);//指针
   
 }
 //天气告知界面
@@ -256,21 +294,30 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
   display->setFont(DialogInput_bold_12);//设置字体
   if(WeatherFlag==0){
     temp = String(forcast_code1);
+    display->drawXbm(6, 0, 8, 8, activeSymbole);
+    display->drawXbm(18, 0, 8, 8,inactiveSymbole);
+    display->drawXbm(30, 0, 8, 8,inactiveSymbole);
     display->drawXbm(40, 0, 16, 16, hz16[0]);//今
     display->drawString(110, 38, String(forcast_temperaturerange1));
   }
       
   else if(WeatherFlag==1){
     temp = String(forcast_code2);
+    display->drawXbm(6, 0, 8, 8, inactiveSymbole);
+    display->drawXbm(18, 0, 8, 8,activeSymbole);
+    display->drawXbm(30, 0, 8, 8,inactiveSymbole);
     display->drawXbm(40, 0, 16, 16, hz16[1]);//明
     display->drawString(110, 38, String(forcast_temperaturerange2));
     
   }
       
   else if(WeatherFlag==2){
-     temp = String(forcast_code3);
-     display->drawXbm(40, 0, 16, 16, hz16[2]);//后
-     display->drawString(110, 38, String(forcast_temperaturerange3));
+    temp = String(forcast_code3);
+    display->drawXbm(6, 0, 8, 8, inactiveSymbole);
+    display->drawXbm(18, 0, 8, 8,inactiveSymbole);
+    display->drawXbm(30, 0, 8, 8,activeSymbole);
+    display->drawXbm(40, 0, 16, 16, hz16[2]);//后
+    display->drawString(110, 38, String(forcast_temperaturerange3));
     
   }
      
@@ -289,26 +336,26 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
     case 0:
         display->drawString(100,18,"(Sunny)");
         display->drawXbm(100, 18, 16, 16, hz16[6]);//晴
-        display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);
+        display->drawXbm(0, 8, Icon_width, Icon_height, Sunny_Icon_bits);
     break;
     
     case 1:
         display->drawString(100,18,"(Clear)");
         display->drawXbm(100, 18, 16, 16, hz16[6]);//晴
-        display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);
+        display->drawXbm(0, 10, Icon_width, Icon_height, Sunny_Icon_bits);
     break;
     
     case 2:
     case 3:
         display->drawString(100,18,"(Fair)");
         display->drawXbm(100, 18, 16, 16, hz16[6]);//晴
-        display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);
+        display->drawXbm(0, 10, Icon_width, Icon_height, Sunny_Icon_bits);
         break;
     
     case 4: 
         display->drawXbm(56, 18, 16, 16, hz16[8]);//多
         display->drawXbm(72, 18, 16, 16, hz16[9]);//云
-        display->drawXbm(0, 6, Icon_width, Icon_height, Partly_Cloudy_Icon_bits);
+        display->drawXbm(0, 10, Icon_width, Icon_height, Partly_Cloudy_Icon_bits);
         break; 
         
         
@@ -317,7 +364,7 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
       display->drawXbm(66, 18, 16, 16, hz16[7]);//间
       display->drawXbm(82, 18, 16, 16, hz16[8]);//多
       display->drawXbm(98, 18, 16, 16, hz16[9]);//云
-      display->drawXbm(0, 6, Icon_width, Icon_height, Partly_Cloudy_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Partly_Cloudy_Icon_bits);
     break;
     
     case 7:
@@ -326,19 +373,19 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
       display->drawXbm(66, 18, 16, 16, hz16[13]);//部
       display->drawXbm(82, 18, 16, 16, hz16[8]);//多
       display->drawXbm(98, 18, 16, 16, hz16[9]);//云
-      display->drawXbm(0, 6, Icon_width, Icon_height, Partly_Cloudy_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Partly_Cloudy_Icon_bits);
     break;
     
     case 9:
       display->drawString(110,18,"(Overcast)");
       display->drawXbm(110, 18, 16, 16, hz16[14]);//阴
-      display->drawXbm(0, 6, Icon_width, Icon_height, Overcast_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Overcast_Icon_bits); 
       break;
 
     case 10: 
       display->drawXbm(56, 18, 16, 16, hz16[16]);//阵
       display->drawXbm(72, 18, 16, 16, hz16[17]);//雨
-      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Rain_Icon_bits);
     break;
 
     
@@ -346,7 +393,7 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
       display->drawXbm(60, 18, 16, 16, hz16[15]);//雷
       display->drawXbm(76, 18, 16, 16, hz16[16]);//阵
       display->drawXbm(92, 18, 16, 16, hz16[17]);//雨
-      display->drawXbm(0, 6, Icon_width, Icon_height, Thundershower_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Thundershower_Icon_bits);
     break;
     
     case 12: 
@@ -356,33 +403,33 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
       display->drawXbm(82, 18, 16, 16, hz16[18]);//加
       display->drawXbm(96, 18, 16, 16, hz16[19]);//冰
       display->drawXbm(110, 18, 16, 16, hz16[20]);//雹
-      display->drawXbm(0, 6, Icon_width, Icon_height, Hail_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Hail_Icon_bits); 
     break;
     
     case 13:
       display->drawXbm(56, 18, 16, 16, hz16[12]);//小
       display->drawXbm(72, 18, 16, 16, hz16[17]);//雨
-      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Rain_Icon_bits); 
     break;
     
     case 14:  
       display->drawXbm(56, 18, 16, 16, hz16[11]);//中
       display->drawXbm(72, 18, 16, 16, hz16[17]);//雨
-      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Rain_Icon_bits); 
     break;
 
     
     case 15: 
       display->drawXbm(56, 18, 16, 16, hz16[10]);//大
       display->drawXbm(72, 18, 16, 16, hz16[17]);//雨
-      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Rain_Icon_bits); 
     break;
 
     
     case 16: 
       display->drawXbm(56, 18, 16, 16, hz16[33]);//暴
       display->drawXbm(72, 18, 16, 16, hz16[17]);//雨
-      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Rain_Icon_bits); 
     break;
 
     
@@ -390,7 +437,7 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
       display->drawXbm(60, 18, 16, 16, hz16[10]);//大
       display->drawXbm(76, 18, 16, 16, hz16[33]);//暴
       display->drawXbm(92, 18, 16, 16, hz16[17]);//雨
-      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Rain_Icon_bits); 
     break;
 
     
@@ -399,7 +446,7 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
       display->drawXbm(60, 18, 16, 16, hz16[10]);//大
       display->drawXbm(76, 18, 16, 16, hz16[33]);//暴
       display->drawXbm(92, 18, 16, 16, hz16[17]);//雨
-      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Rain_Icon_bits); 
     break;
 
 
@@ -407,51 +454,51 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
     case 19:
       display->drawXbm(56, 18, 16, 16, hz16[34]);//冻
       display->drawXbm(72, 18, 16, 16, hz16[17]);//雨 
-      display->drawXbm(0, 6, Icon_width, Icon_height, Rain_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Rain_Icon_bits); 
     break;
     
     case 20:
       display->drawXbm(60, 18, 16, 16, hz16[17]);//雨
       display->drawXbm(76, 18, 16, 16, hz16[35]);//夹
       display->drawXbm(92, 18, 16, 16, hz16[36]);//雪 
-      display->drawXbm(0, 6, Icon_width, Icon_height, Sleet_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Sleet_Icon_bits); 
     break;
     
     case 21: 
       display->drawXbm(56, 18, 16, 16, hz16[16]);//阵
       display->drawXbm(72, 18, 16, 16, hz16[36]);//雪 
-      display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Snow_Icon_bits);
     break;
 
     
     case 22: 
       display->drawXbm(56, 18, 16, 16, hz16[12]);//小
       display->drawXbm(72, 18, 16, 16, hz16[36]);//雪 
-      display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Snow_Icon_bits); 
     break;
     
     case 23:
       display->drawXbm(56, 18, 16, 16, hz16[11]);//中
       display->drawXbm(72, 18, 16, 16, hz16[36]);//雪 
-      display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Snow_Icon_bits); 
     break;
     
     case 24:
       display->drawXbm(56, 18, 16, 16, hz16[10]);//大
       display->drawXbm(72, 18, 16, 16, hz16[36]);//雪 
-      display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Snow_Icon_bits); 
     break;
     
     case 25: 
       display->drawXbm(56, 18, 16, 16, hz16[33]);//暴
       display->drawXbm(72, 18, 16, 16, hz16[36]);//雪 
-      display->drawXbm(0, 6, Icon_width, Icon_height, Snow_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Snow_Icon_bits); 
     break;
     
     case 26:
       display->drawXbm(56, 18, 16, 16, hz16[21]);//浮
       display->drawXbm(72, 18, 16, 16, hz16[22]);//尘
-      display->drawXbm(0, 6, Icon_width, Icon_height, Duststorm_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Duststorm_Icon_bits); 
     break;
 
 
@@ -459,7 +506,7 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
     case 27:
       display->drawXbm(56, 18, 16, 16, hz16[23]);//扬
       display->drawXbm(72, 18, 16, 16, hz16[24]);//沙
-      display->drawXbm(0, 6, Icon_width, Icon_height, Duststorm_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Duststorm_Icon_bits); 
     break;
 
     
@@ -467,7 +514,7 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
       display->drawXbm(60, 18, 16, 16, hz16[24]);//沙
       display->drawXbm(76, 18, 16, 16, hz16[22]);//尘
       display->drawXbm(92, 18, 16, 16, hz16[33]);//暴
-      display->drawXbm(0, 6, Icon_width, Icon_height, Duststorm_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Duststorm_Icon_bits); 
     break;
     
     case 29: 
@@ -475,37 +522,37 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
       display->drawXbm(60, 18, 16, 16, hz16[24]);//沙
       display->drawXbm(76, 18, 16, 16, hz16[22]);//尘
       display->drawXbm(92, 18, 16, 16, hz16[33]);//暴
-      display->drawXbm(0, 6, Icon_width, Icon_height, Duststorm_Icon_bits); 
+      display->drawXbm(0, 10, Icon_width, Icon_height, Duststorm_Icon_bits); 
     break;
     
     case 30:
       display->drawString(100,18,"(Foggy)");
       display->drawXbm(100, 18, 16, 16, hz16[28]);//雾
-      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Haze_Icon_bits);
     break;
     
     case 31:
       display->drawString(100,18,"(Haze)");
       display->drawXbm(100, 18, 16, 16, hz16[29]);//霾
-      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Haze_Icon_bits);
     break;
     
     case 32:
       display->drawString(100,18,"(Windy)");
       display->drawXbm(100, 18, 16, 16, hz16[27]);//风
-      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Haze_Icon_bits);
     break;
     
     case 33:
       display->drawXbm(56, 18, 16, 16, hz16[10]);//大
       display->drawXbm(72, 18, 16, 16, hz16[27]);//风
-      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Haze_Icon_bits);
     break;
     
     case 34:
       display->drawXbm(56, 18, 16, 16, hz16[30]);//飓
       display->drawXbm(72, 18, 16, 16, hz16[27]);//风
-      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Haze_Icon_bits);
     break;
     
     case 35:
@@ -513,30 +560,30 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
       display->drawXbm(60, 18, 16, 16, hz16[26]);//带
       display->drawXbm(76, 18, 16, 16, hz16[27]);//风
       display->drawXbm(92, 18, 16, 16, hz16[33]);//暴
-      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Haze_Icon_bits);
     break;
     
     case 36:
       display->drawXbm(60, 18, 16, 16, hz16[31]);//龙
       display->drawXbm(76, 18, 16, 16, hz16[32]);//卷
       display->drawXbm(92, 18, 16, 16, hz16[27]);//风
-      display->drawXbm(0, 6, Icon_width, Icon_height, Haze_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Haze_Icon_bits);
     break;
     
     case 37:
       display->drawString(100,18,"(Cold)");
       display->drawXbm(100, 18, 16, 16, hz16[37]);//冷
-      display->drawXbm(0, 6, Icon_width, Icon_height, Cold_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Cold_Icon_bits);
     break;
     
     case 38:
       display->drawString(100,18,"(Hot)");
       display->drawXbm(100, 18, 16, 16, hz16[38]);//热
-      display->drawXbm(0, 6, Icon_width, Icon_height, Sunny_Icon_bits);
+      display->drawXbm(0, 10, Icon_width, Icon_height, Sunny_Icon_bits);
     break;
     
     case 99: 
-      display->drawXbm(0, 6, Icon_width, Icon_height, Unkonwn_Icon_bits);
+      display->drawXbm(0, 8, Icon_width, Icon_height, Unkonwn_Icon_bits);
       display->drawXbm(56, 18, 16, 16, hz16[39]);//未
       display->drawXbm(72, 18, 16, 16, hz16[40]);//知
       break;
@@ -547,16 +594,62 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
 
 
 void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  display->drawXbm(0, 8, Icon_width, Icon_height, Set_Icon_bits);//闹钟图标
+  display->drawXbm(0, 8, Icon_width, Icon_height, Set_Icon_bits);//设置图标
+  display->drawVerticalLine(42, 0, 52);
+ 
 }
 
 
 void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y){
-  display->drawXbm(0, 8, Icon_width, Icon_height, Home_Icon_bits);//闹钟图标
+  WiFiClient espClient;
+  PubSubClient client(espClient);
+  display->drawXbm(0, 8, Icon_width, Icon_height, Home_Icon_bits);//MQTT图标
+  display->drawVerticalLine(42, 0, 52);
+  display->setTextAlignment(TEXT_ALIGN_CENTER);
+  //设置字体
+  display->setFont(ArialMT_Plain_10);
+  display->drawString(84, 0, "MQTT");
+  display->drawString(84, 10, "Connecting...");
 
-
+  client.setServer(mqtt_server, 1883);
+  client.setCallback(callback);
   
+  /*client.connect("LOT_Watch");
+  Serial.println("MQTT Connected");
+  client.subscribe(topic_name);//接收外来的数据时的intopic
+  client.publish("Eagle_Watch", "wzw");*/
+
+
+  client.disconnect();//关闭TCPclient
+
+
+ 
+  //display->display();
+  //client.loop();//MUC接收数据的主循环函数。
 }
+
+void callback(char* topic, byte* payload, unsigned int length) {
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (int i = 0; i < length; i++) {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
+
+  // Switch on the LED if an 1 was received as first character
+  if ((char)payload[0] == '1') {
+    digitalWrite(BUILTIN_LED, LOW);   // Turn the LED on (Note that LOW is the voltage level
+    // but actually the LED is on; this is because
+    // it is acive low on the ESP-01)
+  } else {
+    digitalWrite(BUILTIN_LED, HIGH);  // Turn the LED off by making the voltage HIGH
+  }
+
+}
+
+
+
 
 //底层界面，包括显示时间，当天气温
 void drawHeaderOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
@@ -575,7 +668,7 @@ void drawHeaderOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
   String mtemp = String("100")  +  "%";
   display->drawString(128, 54, mtemp);
   
-  display->drawHorizontalLine(0, 52, 128);
+  display->drawHorizontalLine(0, 54, 128);
 }
 
 
@@ -609,6 +702,7 @@ void GetCurrentWeather(void)
     //向心知天气的服务器发送请求。
     //连接服务器并判断是否连接成功，若成功就发送GET 请求数据下发 
     String json_from_server; 
+    WiFiClient client;//创建网络对象
     if(client.connect(host, httpPort)==1)                 
     {     
         //主要格式                                        
@@ -666,6 +760,7 @@ void GetCurrentWeather(void)
 void GetForecastWeather(void)  
 {
     String json_from_server; 
+    WiFiClient client;
     if(client.connect(host, httpPort)==1)                 
     {     
         client.print("GET /v3/weather/daily.json?key=cinm0okk7gzgtujn&location=lanzhou&language=en&unit=c&start=0&days=4 HTTP/1.1\r\nHost: api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
@@ -764,9 +859,7 @@ void updateData(OLEDDisplay *display) {
   //GetCurrentWeather();//获取当天天气
   drawProgress(display, 30, "Updating weather...");
   //GetForecastWeather();//获取未来三天的天气
-  
-  drawProgress(display, 50, "Updating forecasts...");
-
+  drawProgress(display, 50, "Updating forcast...");
 
   drawProgress(display, 100, "Done...");
   

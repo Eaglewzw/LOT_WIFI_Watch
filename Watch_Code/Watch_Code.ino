@@ -56,21 +56,21 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 const char* mqtt_server = "39.105.5.215";
 const char* topic_name = "Eagle_SmartHome";//订阅的主题
-long lastMsg = 0;
-char msg[50]="Eagle Here!";//用于存放发送的字符
-int value = 0;
 int Mqttflag=0;
-
 
 
 //闹钟
 int Clock_1_Hour=6,Clock_1_Minute=0;//第一个事务闹钟
-bool Clock_1_Config=0;
+bool Clock_1_Config=0;//事务闹钟打开标志
 int Clock_2_Hour=7,Clock_2_Minute=0;//第二个事务闹钟
 bool Clock_2_Config=0;
 int Clock_3_Hour=8,Clock_3_Minute=0;//第三个事务闹钟
 bool Clock_3_Config=0;
 int SwitchClock=0;
+
+//设置标志
+int SetFlag=0;
+
 
 // 网络时间
 // initial time (possibly given by an external RTC)
@@ -300,16 +300,15 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
     if(temp>0 && temp<10) display->drawXbm(100, 12, 10, 40, Figure[10]);
     if(temp>=10)          display->drawXbm(90, 12, 10, 40, Figure[10]);
     }
-  if(temp>0 && temp<10)
+  if(temp>=0 && temp<10)
       display->drawXbm(110, 12, 10, 40, Figure[temp]); 
     else if(temp>=10){
       display->drawXbm(100, 12, 10, 40,Figure[temp/10]);
       display->drawXbm(110, 12, 10, 40, Figure[temp%10]);
     }
     display->drawXbm(120, 14, 8, 8, thermometer);
- 
-  
 }
+
 
 //事务闹钟界面
 void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
@@ -320,37 +319,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
   display->setFont(DialogInput_bold_12);
   display->drawXbm(0, 8, Icon_width, Icon_height, Clock_Icon_bits);//闹钟图标
 
-
-   //Up按键被按下
-     if(digitalRead(D6) == LOW){
-      delay(5);
-      if(digitalRead(D6) == LOW){
-        while(digitalRead(D6) == LOW){
-          i++;//防止进入死循环
-          if(i>=500000){
-            i=0;
-            break;
-          }
-        }
-
-      }
-    }
-
-        //Down按键被按下
-     if(digitalRead(D5) == LOW){
-      delay(5);
-      if(digitalRead(D5) == LOW){
-        while(digitalRead(D5) == LOW){
-          i++;//防止进入死循环
-          if(i>=500000){
-            i=0;
-            break;
-          }
-        }
-
-      }
-    }
-
+  //选择按下
    if(digitalRead(D3) == LOW){
       delay(5);
       if(digitalRead(D3) == LOW){
@@ -374,94 +343,352 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
   display->drawString(72, 18, String(Clock_2));
   display->drawString(72, 36, String(Clock_3));
 
+
+  //第一个事务闹钟开关
+  if(Clock_1_Config==0)
+      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
+  else
+      display->drawXbm(94, 0, 32, 16,Open_Icon);//开
+
+
+  //第二个事务闹钟开关    
+  if(Clock_2_Config==0)
+    display->drawXbm(94, 18, 32, 16,Close_Icon);//关
+  else
+    display->drawXbm(94, 18, 32, 16,Open_Icon);//开
+
+  //第三个事务闹钟开关      
+  if(Clock_3_Config==0)  
+    display->drawXbm(94, 36, 32, 16,Close_Icon);//关
+  else
+    display->drawXbm(94, 36, 32, 16,Open_Icon);//开
+
   switch(SwitchClock){
-    case 0:
-      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 18, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 36, 32, 16,Close_Icon);//关
-    break;
     
+    //第一个事务闹钟"时"控制
     case 1: 
+     //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_1_Hour++;
+        if(Clock_1_Hour==24) Clock_1_Hour=0;
+      }
+    }
+     //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_1_Hour--;
+        if(Clock_1_Hour==-1) Clock_1_Hour=23;
+      }
+    }
       display->drawRect(54, 0, 17, 15);
-      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 18, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 36, 32, 16,Close_Icon);//关
       display->drawXbm(45, 4, 8, 8,Pointer_Icon);//指针
-    
     break;
     
     case 2:
+   //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_1_Minute++;
+        if(Clock_1_Minute==60) Clock_1_Minute=0;
+      }
+    }
+        //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_1_Minute--;
+        if(Clock_1_Minute==-1) Clock_1_Minute=59;
+      }
+    }
       display->drawRect(75, 0, 17, 15);
-      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 18, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 36, 32, 16,Close_Icon);//关
       display->drawXbm(45, 4, 8, 8,Pointer_Icon);//指针 
     break;
 
   
     case 3:
+     //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_1_Config=1;
+        
+      }
+    }
+     //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+          Clock_1_Config=0;
+      }
+    }
       display->drawRect(94, 0, 32, 16);
-      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 18, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 36, 32, 16,Close_Icon);//关
       display->drawXbm(45, 4, 8, 8,Pointer_Icon);//指针 
-
     break;
 
     //第二个事务闹钟
     case 4:
+     //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_2_Hour++;
+        if(Clock_2_Hour==24) Clock_2_Hour=0;
+      }
+    }
+     //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_2_Hour--;
+        if(Clock_2_Hour==-1) Clock_2_Hour=23;
+      }
+    }
       display->drawRect(54, 18, 17, 15); 
-      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 18, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 36, 32, 16,Close_Icon);//关
       display->drawXbm(45, 22, 8, 8,Pointer_Icon);//指针
-
     break;
     
     case 5:
+    //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_2_Minute++;
+        if(Clock_2_Minute==60) Clock_2_Minute=0;
+      }
+    }
+     //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_2_Minute--;
+        if(Clock_2_Minute==-1) Clock_2_Minute=59;
+      }
+    }
       display->drawRect(75, 18, 17, 15); 
-      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 18, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 36, 32, 16,Close_Icon);//关
       display->drawXbm(45, 22, 8, 8,Pointer_Icon);//指针
     break;
     
     case 6: 
+     //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_2_Config=1;
+        
+      }
+    }
+        //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+          Clock_2_Config=0;
+      
+      }
+    }
       display->drawRect(94, 18, 32, 16);
-      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 18, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 36, 32, 16,Close_Icon);//关
       display->drawXbm(45, 22, 8, 8,Pointer_Icon);//指针
-    
     break; 
        
     case 7:
+    
+     //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_3_Hour++;
+        if(Clock_3_Hour==24) Clock_3_Hour=0;
+      }
+    }
+    //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_3_Hour--;
+        if(Clock_3_Hour==-1) Clock_3_Hour=23;
+      }
+    }
       display->drawRect(54, 36, 17, 15); 
-      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 18, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 36, 32, 16,Close_Icon);//关
       display->drawXbm(45, 40, 8, 8,Pointer_Icon);//指针 
     break;
     
     case 8: 
+    //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_3_Minute++;
+        if(Clock_3_Minute==60) Clock_3_Minute=0;
+      }
+    }
+
+      
+
+        //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_3_Minute--;
+        if(Clock_3_Minute==-1) Clock_3_Minute=59;
+      }
+    }
       display->drawRect(75, 36, 17, 15); 
-      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 18, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 36, 32, 16,Close_Icon);//关
       display->drawXbm(45, 40, 8, 8,Pointer_Icon);//指针 
     break;
     
     case 9:
+     //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Clock_3_Config=1;
+        
+      }
+    }
+     //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+          Clock_3_Config=0;
+      
+      }
+    }
       display->drawRect(94, 36, 32, 16);
-      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 18, 32, 16,Close_Icon);//关
-      display->drawXbm(94, 36, 32, 16,Close_Icon);//关
       display->drawXbm(45, 40, 8, 8,Pointer_Icon);//指针  
     break;
   }
-
-  
 }
+
+
 //天气告知界面
 void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
   SwitchClock=0;
@@ -548,8 +775,6 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
      
   //显示预报的日期、天气情况、温度范围
   display->drawXbm(56, 0, 16, 16, hz16[3]);//天
- 
- 
   display->drawXbm(40, 36, 16, 16, hz16[4]);//温
   display->drawXbm(56, 36, 16, 16, hz16[5]);//度
   
@@ -561,7 +786,7 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
     case 0:
         display->drawString(100,18,"(Sunny)");
         display->drawXbm(100, 18, 16, 16, hz16[6]);//晴
-        display->drawXbm(0, 8, Icon_width, Icon_height, Sunny_Icon_bits);
+        display->drawXbm(0, 10, Icon_width, Icon_height, Sunny_Icon_bits);
     break;
     
     case 1:
@@ -819,9 +1044,58 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
 
 
 void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  Mqttflag =0;
+  int i=0;
+  Mqttflag =0;//归位前面的标志
+
+  
+    //选择
+     if(digitalRead(D3) == LOW){
+      delay(5);
+      if(digitalRead(D3) == LOW){
+        while(digitalRead(D3) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        SetFlag++;
+        if(SetFlag==3)
+          SetFlag=0;
+      }
+    }
+  
   display->drawXbm(0, 8, Icon_width, Icon_height, Set_Icon_bits);//设置图标
-  display->drawVerticalLine(42, 0, 52);
+  display->drawVerticalLine(42, 0, 52);//图标右侧竖线
+
+  switch(SetFlag){
+
+    case 0:
+      display->drawXbm(56, 0, 16, 16, hz16[58]);//网络信息
+      display->drawXbm(72, 0, 16, 16, hz16[59]);//
+      display->drawXbm(88, 0, 16, 16, hz16[60]);//
+      display->drawXbm(104, 0, 16, 16, hz16[61]);//
+    break;
+    
+    case 1:
+      display->drawXbm(56, 0, 16, 16, hz16[62]);//自动息屏
+      display->drawXbm(72, 0, 16, 16, hz16[63]);//
+      display->drawXbm(88, 0, 16, 16, hz16[61]);//
+      display->drawXbm(104, 0, 16, 16, hz16[64]);//
+    break;
+    
+    case 2:
+      display->drawXbm(46, 0, 16, 16, hz16[65]);//声音与振动
+      display->drawXbm(62, 0, 16, 16, hz16[66]);//
+      display->drawXbm(78, 0, 16, 16, hz16[67]);//
+      display->drawXbm(94, 0, 16, 16, hz16[68]);//
+      display->drawXbm(110, 0, 16, 16, hz16[69]);//
+    break;
+  }
+
+
+
+  
  
 }
 
@@ -830,7 +1104,7 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
   int i=0;
   //定义控制变量
   static int LED_flag=0;
-  static int Fan_Speed=100;
+  static int Fan_Speed=0;
   WeatherFlag=0;
   display->setFont(DialogInput_bold_12);
   display->drawXbm(0, 8, Icon_width, Icon_height, Home_Icon_bits);  //家具标志图标
@@ -852,9 +1126,13 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
           Mqttflag=0;
       }
     }
+  
 
-
-      //Up按键被按下
+  switch(Mqttflag){
+    case 0:
+    display->drawXbm(96, 0, 16, 16, hz16[44]);//台
+    display->drawXbm(112, 0, 16, 16, hz16[45]);//灯
+     //Up按键被按下
      if(digitalRead(D6) == LOW){
       delay(5);
       if(digitalRead(D6) == LOW){
@@ -865,13 +1143,11 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
             break;
           }
         }
-        if(Mqttflag==0) LED_flag=1;
-        
-
+        LED_flag=1;
       }
     }
 
-        //Down按键被按下
+     //Down按键被按下
      if(digitalRead(D5) == LOW){
       delay(5);
       if(digitalRead(D5) == LOW){
@@ -882,17 +1158,9 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
             break;
           }
         }
-         if(Mqttflag==0) LED_flag=0;
-
+        LED_flag=0;
       }
     }
-
-  
-
-  switch(Mqttflag){
-    case 0:
-    display->drawXbm(96, 0, 16, 16, hz16[44]);//台
-    display->drawXbm(112, 0, 16, 16, hz16[45]);//灯
      if(LED_flag==0){
         display->drawXbm(54, 2, 34, 50, TaiDeng_OFF_Icon_bits);  //家具标志图标
         display->drawXbm(94, 36, 32, 16,Close_Icon);//关
@@ -903,7 +1171,6 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
         display->drawXbm(94, 36, 32, 16,Open_Icon);//关
         //client.publish("Eagle_Watch", "LED_ON");//发主题Eagle_Watch
      }
-
     break;
     
     case 1:
@@ -913,6 +1180,36 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
         display->drawXbm(112, 18, 16, 16, hz16[49]);//速
         display->drawXbm(44, 0, 50, 50, Kongtiao_Icon_bits);  //空调标志图标 
         display->drawRect(96, 36, 28, 16); 
+         //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Fan_Speed+=10;if(Fan_Speed==110) Fan_Speed=0;
+      }
+    }
+
+     //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        Fan_Speed-=10;if(Fan_Speed==-10) Fan_Speed=100;
+      }
+    }
+        
         display->drawString(120, 36, String(Fan_Speed));
     break; 
        
@@ -1160,9 +1457,9 @@ void drawProgress(OLEDDisplay *display, int percentage, String label) {
 
 void updateData(OLEDDisplay *display) {
   drawProgress(display, 10, "Updating time...");
-  GetCurrentWeather();//获取当天天气
+  //GetCurrentWeather();//获取当天天气
   drawProgress(display, 30, "Updating weather...");
-  GetForecastWeather();//获取未来三天的天气
+  //GetForecastWeather();//获取未来三天的天气
   drawProgress(display, 50, "Updating forcast...");
   
   client.setServer(mqtt_server, 1883);

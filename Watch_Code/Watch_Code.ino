@@ -70,7 +70,8 @@ int Clock_3_Hour=8,Clock_3_Minute=0;//第三个事务闹钟
 
 bool Clock_1_Config=0,Clock_2_Config=0,Clock_3_Config=0;
 int SwitchClock=0;
-
+int Beep_Flag=0,Stop_Flag=0;;//闹钟响标志位
+ 
 const int Hour_Address1=0,Minute_Address1=1;
 const int Hour_Address2=2,Minute_Address2=3;
 const int Hour_Address3=4,Minute_Address3=5;
@@ -91,7 +92,6 @@ const String MONTH_NAMES[] = {"JAN", "FEB", "MAR", "APR", "MAY", "JUN", "JUL", "
 static timeval tv;
 static time_t now;
 
-static esp8266::polledTimeout::periodicMs showTimeNow(1000);
 static int time_machine_days = 0; // 0 = now
 static bool time_machine_running = false;
 
@@ -194,7 +194,7 @@ void setup() {
   digitalWrite(D0, LOW); // 亮灯
   delay(200);           // 延时500ms
   digitalWrite(D0, HIGH);// 灭灯
-  delay(2000);
+  delay(200);
 
   //将上次掉电的数据读取出来
   Clock_1_Hour = EEPROM.read(Hour_Address1);
@@ -247,9 +247,7 @@ void loop() {
     /*主界面共两个任务
      *1、选择所在目录
      *2、定时查询天气
-     *3、闹钟检测
      */
-    ClockCheck();//闹钟检测
     if (millis() - timeSinceLastWUpdate > (1000L*UPDATE_INTERVAL_SECS)) {
         client.disconnect();//先断开MQTT的client,因为一次只能只能连接一个端口
         GetCurrentWeather();  //更新当前天气信息
@@ -262,11 +260,11 @@ void loop() {
 
           
     if(digitalRead(D7) == HIGH){
-      delay(5);
+      delay(3);
       if(digitalRead(D7) == HIGH){
         while(digitalRead(D7) == HIGH){
           i++;//防止进入死循环
-          if(i>=500000){
+          if(i>=400000){
             i=0;
             break;
           }
@@ -277,12 +275,15 @@ void loop() {
       }
     } 
     
-    ui.switchToFrame(uiFrameIndex);  
+    ui.switchToFrame(uiFrameIndex); 
+    //检测闹钟是否到了
+    ClockCheck(); 
 }
 
 //主界面
 //主要显示日期、时间、天气
 void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  static int count=0;
   SetFlag=0;//设置功能归零
   now = time(nullptr);
   struct tm* timeInfo;
@@ -293,6 +294,8 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
   display->setFont(ArialMT_Plain_10);
   String date = WDAY_NAMES[timeInfo->tm_wday];
 
+
+
   //显示日期
   sprintf_P(buff, PSTR("%s, %02d/%02d/%04d"), WDAY_NAMES[timeInfo->tm_wday].c_str(), timeInfo->tm_mday, timeInfo->tm_mon+1, timeInfo->tm_year + 1900);
   display->drawString(44 + x, 0 + y, String(buff));
@@ -302,15 +305,35 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
   sprintf_P(buff, PSTR("%02d:%02d:%02d"), timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec);
   display->drawString(44 + x, 10 + y, String(buff));
   display->setTextAlignment(TEXT_ALIGN_LEFT);
-
-  //显示所在地区
-  display->drawXbm(0, 36, 16, 16, hz16[53]);//位置:
-  display->drawXbm(16, 36, 16, 16, hz16[54]);//
-  display->drawXbm(32, 36, 16, 16, hz16[55]);//
-
-  display->drawXbm(48, 36, 16, 16, hz16[56]);//兰州
-  display->drawXbm(64, 36, 16, 16, hz16[57]);//
   
+  //显示所在地区
+  if(Beep_Flag==0){
+    display->drawXbm(0, 36, 16, 16, hz16[53]);//位置:
+    display->drawXbm(16, 36, 16, 16, hz16[54]);//
+    display->drawXbm(32, 36, 16, 16, hz16[55]);//
+
+    display->drawXbm(48, 36, 16, 16, hz16[56]);//兰州
+    display->drawXbm(64, 36, 16, 16, hz16[57]);// 
+  }
+  else{
+    //该起床了！ 闪烁效果
+    count++;
+    if(count%2){
+      display->drawXbm(0, 36, 16, 16, hz16[70]);
+      display->drawXbm(16, 36, 16, 16, hz16[71]);
+      display->drawXbm(32, 36, 16, 16, hz16[72]);
+      display->drawXbm(48, 36, 16, 16, hz16[73]);
+      display->drawXbm(64, 36, 16, 16, hz16[74]);
+    }
+    else{
+      display->drawXbm(0, 36, 16, 16, hz16[75]);
+      display->drawXbm(16, 36, 16, 16, hz16[75]);
+      display->drawXbm(32, 36, 16, 16, hz16[75]);
+      display->drawXbm(48, 36, 16, 16, hz16[75]);
+      display->drawXbm(64, 36, 16, 16, hz16[75]);
+    }
+    
+  }
   //显示WiFi是否连接标志
   display->drawXbm(98, 0, 10, 8,WIFI); 
   //显示电量
@@ -332,6 +355,60 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
     }
     display->drawXbm(120, 14, 8, 8, thermometer);
 }
+
+
+
+
+
+
+void ClockCheck(void){
+  int i=0;
+  now = time(nullptr);
+  struct tm* timeInfo;
+  timeInfo = localtime(&now);
+ 
+  int Hour=timeInfo->tm_hour, Minute=timeInfo->tm_min;
+  //检测三个闹钟是否到了
+  if(Clock_1_Config==1 && Hour==Clock_1_Hour && Minute == Clock_1_Minute){
+       if(Stop_Flag==0) Beep_Flag=1;  
+       else Beep_Flag=0;  
+  }
+  else if(Clock_2_Config==1 && Hour==Clock_2_Hour && Minute == Clock_2_Minute){
+       if(Stop_Flag==0) Beep_Flag=1;  
+       else Beep_Flag=0;   
+  }
+  else if(Clock_3_Config==1 && Hour==Clock_3_Hour && Minute == Clock_3_Minute){
+       if(Stop_Flag==0) Beep_Flag=1;  
+       else Beep_Flag=0;  
+  }
+  else Stop_Flag=0;
+  if(Beep_Flag==1){
+    digitalWrite(D0, LOW); // 亮灯
+    delay(200);           // 延时500ms
+    digitalWrite(D0, HIGH);// 灭灯
+    delay(200);          // 延时500ms
+    digitalWrite(D0, LOW); // 亮灯
+    delay(200);           // 延时500ms
+    digitalWrite(D0, HIGH);// 灭灯
+    delay(200);
+   //选择按下
+   if(digitalRead(D3) == LOW){
+      delay(3);
+      if(digitalRead(D3) == LOW){
+        while(digitalRead(D3) == LOW){
+          i++;//防止进入死循环
+          if(i>=90000){
+            i=0;
+            break;
+          }
+        }
+          Beep_Flag=0;
+          Stop_Flag=1;
+      }
+    }
+  }
+}
+
 
 
 //事务闹钟界面
@@ -731,13 +808,6 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
 }
 
 
-void ClockCheck(void){
-
-
-
-  
-}
-
 
 //天气告知界面
 void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
@@ -1117,14 +1187,14 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
   
   display->drawXbm(0, 8, Icon_width, Icon_height, Set_Icon_bits);//设置图标
   display->drawVerticalLine(42, 0, 52);//图标右侧竖线
-
+ 
   switch(SetFlag){
-
     case 0:
       display->drawXbm(56, 0, 16, 16, hz16[58]);//网络信息
       display->drawXbm(72, 0, 16, 16, hz16[59]);//
       display->drawXbm(88, 0, 16, 16, hz16[60]);//
       display->drawXbm(104, 0, 16, 16, hz16[61]);//
+   
     break;
     
     case 1:
@@ -1498,9 +1568,9 @@ void drawProgress(OLEDDisplay *display, int percentage, String label) {
 
 void updateData(OLEDDisplay *display) {
   drawProgress(display, 10, "Updating time...");
-  //GetCurrentWeather();//获取当天天气
+  GetCurrentWeather();//获取当天天气
   drawProgress(display, 30, "Updating weather...");
-  //GetForecastWeather();//获取未来三天的天气
+  GetForecastWeather();//获取未来三天的天气
   drawProgress(display, 50, "Updating forcast...");
   
   client.setServer(mqtt_server, 1883);

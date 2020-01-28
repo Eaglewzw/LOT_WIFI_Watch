@@ -9,6 +9,10 @@
 #include <sntp.h>                       // sntp_servermode_dhcp()
 #include <TZ.h>
 
+//闹钟时间存储区
+#include <EEPROM.h>
+
+
 //解析天气有关的库
 #include <ArduinoJson.h> 
 
@@ -61,13 +65,16 @@ int Mqttflag=0;
 
 //闹钟
 int Clock_1_Hour=6,Clock_1_Minute=0;//第一个事务闹钟
-bool Clock_1_Config=0;//事务闹钟打开标志
 int Clock_2_Hour=7,Clock_2_Minute=0;//第二个事务闹钟
-bool Clock_2_Config=0;
 int Clock_3_Hour=8,Clock_3_Minute=0;//第三个事务闹钟
-bool Clock_3_Config=0;
+
+bool Clock_1_Config=0,Clock_2_Config=0,Clock_3_Config=0;
 int SwitchClock=0;
 
+const int Hour_Address1=0,Minute_Address1=1;
+const int Hour_Address2=2,Minute_Address2=3;
+const int Hour_Address3=4,Minute_Address3=5;
+const int Clock1_Adderss=6,Clock2_Adderss=7,Clock3_Adderss=8;
 //设置标志
 int SetFlag=0;
 
@@ -145,6 +152,7 @@ int numberOfOverlays = 1;
 
 void setup() {
   Serial.begin(115200);
+  EEPROM.begin(10);//申请10个字节的内存
   Serial.println();
   Serial.println();
   
@@ -187,8 +195,21 @@ void setup() {
   delay(200);           // 延时500ms
   digitalWrite(D0, HIGH);// 灭灯
   delay(2000);
-  int counter = 0;
+
+  //将上次掉电的数据读取出来
+  Clock_1_Hour = EEPROM.read(Hour_Address1);
+  Clock_1_Minute = EEPROM.read(Minute_Address1);
+  Clock_2_Hour = EEPROM.read(Hour_Address2);
+  Clock_2_Minute = EEPROM.read(Minute_Address2);
+  Clock_3_Hour = EEPROM.read(Hour_Address3);
+  Clock_3_Minute = EEPROM.read(Minute_Address3);
   
+  Clock_1_Config = EEPROM.read(Clock1_Adderss);
+  Clock_2_Config = EEPROM.read(Clock2_Adderss);
+  Clock_3_Config = EEPROM.read(Clock3_Adderss);
+  
+
+  int counter = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
@@ -226,7 +247,9 @@ void loop() {
     /*主界面共两个任务
      *1、选择所在目录
      *2、定时查询天气
+     *3、闹钟检测
      */
+    ClockCheck();//闹钟检测
     if (millis() - timeSinceLastWUpdate > (1000L*UPDATE_INTERVAL_SECS)) {
         client.disconnect();//先断开MQTT的client,因为一次只能只能连接一个端口
         GetCurrentWeather();  //更新当前天气信息
@@ -260,6 +283,7 @@ void loop() {
 //主界面
 //主要显示日期、时间、天气
 void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  SetFlag=0;//设置功能归零
   now = time(nullptr);
   struct tm* timeInfo;
   timeInfo = localtime(&now);
@@ -313,7 +337,7 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
 //事务闹钟界面
 void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
   char Clock_1[10],Clock_2[10],Clock_3[10];
-  int i=0;
+  int i=0,WriteFlag=0;
   display->drawVerticalLine(42, 0, 52);
   display->setTextAlignment(TEXT_ALIGN_CENTER);
   display->setFont(DialogInput_bold_12);
@@ -335,6 +359,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           SwitchClock=0;
       }
     }
+    
+   
   //设置三个事务闹钟
   sprintf_P(Clock_1, PSTR("%02d:%02d"), Clock_1_Hour,Clock_1_Minute);
   sprintf_P(Clock_2, PSTR("%02d:%02d"), Clock_2_Hour,Clock_2_Minute);
@@ -363,8 +389,23 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
   else
     display->drawXbm(94, 36, 32, 16,Open_Icon);//开
 
+
   switch(SwitchClock){
     
+    case 0:
+      //将修改的数据保存到EEPROM
+      EEPROM.write(Hour_Address1, Clock_1_Hour);
+      EEPROM.write(Minute_Address1, Clock_1_Minute);
+      EEPROM.write(Hour_Address2, Clock_2_Hour);
+      EEPROM.write(Minute_Address2, Clock_2_Minute);
+      EEPROM.write(Hour_Address3, Clock_3_Hour);
+      EEPROM.write(Minute_Address3, Clock_3_Minute);
+      EEPROM.write(Clock1_Adderss,Clock_1_Config);
+      EEPROM.write(Clock2_Adderss,Clock_2_Config);
+      EEPROM.write(Clock3_Adderss,Clock_3_Config);
+      EEPROM.commit();
+    break;
+ 
     //第一个事务闹钟"时"控制
     case 1: 
      //Up按键被按下
@@ -683,9 +724,18 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
       }
     }
       display->drawRect(94, 36, 32, 16);
-      display->drawXbm(45, 40, 8, 8,Pointer_Icon);//指针  
+      display->drawXbm(45, 40, 8, 8,Pointer_Icon);//指针 
+      WriteFlag=1; 
     break;
   }
+}
+
+
+void ClockCheck(void){
+
+
+
+  
 }
 
 
@@ -1092,10 +1142,6 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
       display->drawXbm(110, 0, 16, 16, hz16[69]);//
     break;
   }
-
-
-
-  
  
 }
 
@@ -1401,11 +1447,6 @@ void GetForecastWeather(void)
       return;
     }
     //以下代码分别提取地区，当前天气，代码，及湿度
-
-
-
-   
-
       strcpy(forcast_code2,jsonBuffer["results"][0]["daily"][1]["code_day"]); //明天天气代码
       strcpy(forcast_code1,jsonBuffer["results"][0]["daily"][0]["code_day"]); //今天天气代码
       strcpy(forcast_code3,jsonBuffer["results"][0]["daily"][2]["code_day"]); //后天天气代码

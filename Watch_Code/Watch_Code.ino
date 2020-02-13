@@ -31,6 +31,10 @@
 const char* WIFI_SSID = "CMCC-9Nkm";
 const char* WIFI_PWD = "Pm54j#Pm";
 
+int WIFINumber = 0;//附近WiFi个数
+String WIFIName[20]={};
+
+
 //访问心知天气的网站，获取天气数据
 const int httpPort = 80;
 const char* host = "api.seniverse.com";
@@ -81,7 +85,6 @@ int SetFlag=0;
 
 
 // 网络时间
-// initial time (possibly given by an external RTC)
 #define RTC_UTC_TEST 1510592825 // 1510592825 = Monday 13 November 2017 17:07:05 UTC
 #define MYTZ TZ_Asia_Shanghai
 
@@ -113,6 +116,7 @@ SSD1306Wire     display(I2C_DISPLAY_ADDRESS, SDA_PIN, SDC_PIN);
 OLEDDisplayUi   ui( &display );
 
 
+
 //数据更新条
 void drawProgress(OLEDDisplay *display, int percentage, String label);
 //初始数据获取
@@ -125,13 +129,10 @@ void GetCurrentWeather(void);
 void GetForecastWeather(void);
 //闹钟检查
 void ClockCheck(void);
-
-
 //MQTT
 void callback(char* topic, byte* payload, unsigned int length);
 
 //五个界面框架
-//主界面框架
 void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
@@ -152,7 +153,7 @@ int numberOfOverlays = 1;
 
 void setup() {
   Serial.begin(115200);
-  EEPROM.begin(10);//申请10个字节的内存
+  EEPROM.begin(10);//申请10个字节的内存,用于存放闹钟信息
   Serial.println();
   Serial.println();
   
@@ -185,8 +186,9 @@ void setup() {
   pinMode(BUILTIN_LED, OUTPUT);  //WIFI模块上的蓝灯
   
   WiFi.begin(WIFI_SSID, WIFI_PWD);
-  display.drawXbm(0, 0, WiFi_Logo_width, WiFi_Logo_height, LOT_Watch_Logo_bits);
+  display.drawXbm(25, 0, 80, 64, LOT_Watch_Logo_bits);
   display.display();
+  
   digitalWrite(D0, LOW); // 亮灯
   delay(200);           // 延时500ms
   digitalWrite(D0, HIGH);// 灭灯
@@ -212,7 +214,6 @@ void setup() {
   int counter = 0;
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    Serial.print(".");
     display.clear();
     display.drawString(64, 10, "Connecting to WiFi");
     display.drawXbm(46, 30, 8, 8, counter % 3 == 0 ? activeSymbole : inactiveSymbole);
@@ -858,9 +859,9 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
   if(WeatherFlag==0){
     temp = String(forcast_code1);
     
-    display->drawXbm(6, 0, 8, 8, activeSymbole);
-    display->drawXbm(18, 0, 8, 8,inactiveSymbole);
-    display->drawXbm(30, 0, 8, 8,inactiveSymbole);
+    display->drawXbm(2, 0, 8, 8, activeSymbole);
+    display->drawXbm(14, 0, 8, 8,inactiveSymbole);
+    display->drawXbm(26, 0, 8, 8,inactiveSymbole);
     display->drawXbm(40, 0, 16, 16, hz16[0]);//今
     display->drawString(122, 1, "("+String(forcast_date1).substring(5)+")");
     display->drawString(110, 38, String(forcast_temperaturerange1));
@@ -870,9 +871,9 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
       
   else if(WeatherFlag==1){
     temp = String(forcast_code2);
-    display->drawXbm(6, 0, 8, 8, inactiveSymbole);
-    display->drawXbm(18, 0, 8, 8,activeSymbole);
-    display->drawXbm(30, 0, 8, 8,inactiveSymbole);
+    display->drawXbm(2, 0, 8, 8, inactiveSymbole);
+    display->drawXbm(14, 0, 8, 8,activeSymbole);
+    display->drawXbm(26, 0, 8, 8,inactiveSymbole);
     display->drawXbm(40, 0, 16, 16, hz16[1]);//明
     display->drawString(122, 1, "("+String(forcast_date2).substring(5)+")");
     display->drawString(110, 38, String(forcast_temperaturerange2));
@@ -882,9 +883,9 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
       
   else if(WeatherFlag==2){
     temp = String(forcast_code3);
-    display->drawXbm(6, 0, 8, 8, inactiveSymbole);
-    display->drawXbm(18, 0, 8, 8,inactiveSymbole);
-    display->drawXbm(30, 0, 8, 8,activeSymbole);
+    display->drawXbm(2, 0, 8, 8, inactiveSymbole);
+    display->drawXbm(14, 0, 8, 8,inactiveSymbole);
+    display->drawXbm(26, 0, 8, 8,activeSymbole);
     display->drawXbm(40, 0, 16, 16, hz16[2]);//后
     //截取日期
     display->drawString(122, 1, "("+String(forcast_date3).substring(5)+")");
@@ -1164,8 +1165,20 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
 
 
 void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  int i=0;
+  int i=0,SureFlag=0;
   Mqttflag =0;//归位前面的标志
+  display->setFont(ArialMT_Plain_10);
+  //WIFINumber = WiFi.scanNetworks();//扫描附近WiFi个数
+  //for(int i=0;i<WIFINumber;i++){
+  //  WIFIName[i]=String(WiFi.SSID(i));
+    //Seri=al.print(WiFi.SSID(0));
+    //Serial.print(WiFi.RSSI(0));
+  //}
+       // for(int i=0;i<WIFINumber;i++)
+     // {
+      //  display->drawString(128, 10*i, WIFIName[i]);
+     // }
+    
 
   
     //选择
@@ -1179,48 +1192,92 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
             break;
           }
         }
-        SetFlag++;
-        if(SetFlag==3)
-          SetFlag=0;
+        SureFlag=1;
+      
+    
       }
     }
+
+         //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        SetFlag++;
+        if(SetFlag==4) SetFlag=0;
+
+      }
+    }
+
+     //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        
+         SetFlag--;
+        if(SetFlag<0) SetFlag=3;
+   
+      }
+    }
+    
   
   display->drawXbm(0, 8, Icon_width, Icon_height, Set_Icon_bits);//设置图标
   display->drawVerticalLine(42, 0, 52);//图标右侧竖线
  
-  switch(SetFlag){
-    case 0:
-      display->drawXbm(56, 0, 16, 16, hz16[58]);//网络信息
-      display->drawXbm(72, 0, 16, 16, hz16[59]);//
-      display->drawXbm(88, 0, 16, 16, hz16[60]);//
-      display->drawXbm(104, 0, 16, 16, hz16[61]);//
-   
-    break;
+  display->drawXbm(60, 0, 16, 16, hz16[58]);//网络信息
+  display->drawXbm(76, 0, 16, 16, hz16[59]);//
+  display->drawXbm(92, 0, 16, 16, hz16[60]);//
+  display->drawXbm(108, 0, 16, 16, hz16[61]);//
+
+  display->drawXbm(60, 16, 16, 16, hz16[62]);//自动息屏
+  display->drawXbm(76, 16, 16, 16, hz16[63]);//
+  display->drawXbm(92, 16, 16, 16, hz16[61]);//
+  display->drawXbm(108, 16, 16, 16, hz16[64]);//
+
+  display->drawXbm(60, 32, 16, 16, hz16[65]);//电池性能
+  display->drawXbm(76, 32, 16, 16, hz16[66]);//
+  display->drawXbm(92, 32, 16, 16, hz16[67]);//
+  display->drawXbm(108, 32, 16, 16, hz16[68]);//
+
+  if(SetFlag==1){
+    display->drawXbm(50, 4, 8, 8,Pointer_Icon);//指针
     
-    case 1:
-      display->drawXbm(56, 0, 16, 16, hz16[62]);//自动息屏
-      display->drawXbm(72, 0, 16, 16, hz16[63]);//
-      display->drawXbm(88, 0, 16, 16, hz16[61]);//
-      display->drawXbm(104, 0, 16, 16, hz16[64]);//
-    break;
+  }else if(SetFlag==2){
+    display->drawXbm(50, 20, 8, 8,Pointer_Icon);//指针
     
-    case 2:
-      display->drawXbm(46, 0, 16, 16, hz16[65]);//声音与振动
-      display->drawXbm(62, 0, 16, 16, hz16[66]);//
-      display->drawXbm(78, 0, 16, 16, hz16[67]);//
-      display->drawXbm(94, 0, 16, 16, hz16[68]);//
-      display->drawXbm(110, 0, 16, 16, hz16[69]);//
-    break;
   }
- 
+  else if(SetFlag==3){
+    display->drawXbm(50, 36, 8, 8,Pointer_Icon);//指针
+    
+  }
+
+
+
+  
 }
 
-
+//电脑端测试
+//服务器端IP：39.105.5.215
+//端口：1883
 void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y){
   int i=0;
   //定义控制变量
   static int LED_flag=0;
   static int Fan_Speed=0;
+  char msg[50]="";
   WeatherFlag=0;
   display->setFont(DialogInput_bold_12);
   display->drawXbm(0, 8, Icon_width, Icon_height, Home_Icon_bits);  //家具标志图标
@@ -1280,12 +1337,14 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
      if(LED_flag==0){
         display->drawXbm(54, 2, 34, 50, TaiDeng_OFF_Icon_bits);  //家具标志图标
         display->drawXbm(94, 36, 32, 16,Close_Icon);//关
-        //client.publish("Eagle_Watch", "LED_OFF");//发主题Eagle_Watch
+        client.publish("Eagle_Watch", "LED_OFF");//发主题Eagle_Watch
+        delay(100);//延迟100mS
      }
      else{
         display->drawXbm(54, 2, 34, 50, TaiDeng_ON_Icon_bits);  //家具标志图标
         display->drawXbm(94, 36, 32, 16,Open_Icon);//关
-        //client.publish("Eagle_Watch", "LED_ON");//发主题Eagle_Watch
+        client.publish("Eagle_Watch", "LED_ON");//发主题Eagle_Watch
+        delay(100);//延迟100mS
      }
     break;
     
@@ -1327,6 +1386,10 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
     }
         
         display->drawString(120, 36, String(Fan_Speed));
+        
+        snprintf(msg,14,"Fan_Speed:%d",Fan_Speed);
+        client.publish("Eagle_Watch",msg);
+        delay(100);//延迟100mS
     break; 
        
     case 2:
@@ -1543,9 +1606,6 @@ void GetForecastWeather(void)
       strcat(forcast_temperaturerange3,"/"); //连接两个字符串
       strcat(forcast_temperaturerange3,Localtemp);
 
-
-
-
       //strcpy(forcast_text1,jsonBuffer["results"][0]["daily"][0]["text_day"]); //今天天气现象
       //strcpy(forcast_text2,jsonBuffer["results"][0]["daily"][1]["text_day"]); //明天天气现象
       //strcpy(forcast_text3,jsonBuffer["results"][0]["daily"][2]["text_day"]); //后天天气现象
@@ -1580,6 +1640,9 @@ void updateData(OLEDDisplay *display) {
   client.subscribe(topic_name);//接收外来的数据时的intopic
 
   drawProgress(display, 80, "Mqtt Connect...");
+
+
+  
   drawProgress(display, 100, "Done...");
   
 }

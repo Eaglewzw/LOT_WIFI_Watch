@@ -65,6 +65,8 @@ PubSubClient client(espClient);
 const char* mqtt_server = "39.105.5.215";
 const char* topic_name = "Eagle_SmartHome";//订阅的主题
 int Mqttflag=0;
+String Humt="Humt:17.0 %";
+String Temp="Temp:26.0°C";
 
 
 //闹钟
@@ -279,6 +281,8 @@ void loop() {
     ui.switchToFrame(uiFrameIndex); 
     //检测闹钟是否到了
     ClockCheck(); 
+    //MQTT接收数据
+    client.loop();//MUC接收数据的主循环函数。
 }
 
 //主界面
@@ -875,6 +879,7 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
     display->drawXbm(14, 0, 8, 8,activeSymbole);
     display->drawXbm(26, 0, 8, 8,inactiveSymbole);
     display->drawXbm(40, 0, 16, 16, hz16[1]);//明
+    //截取日期 格式为2018-02-14  截取后面5位
     display->drawString(122, 1, "("+String(forcast_date2).substring(5)+")");
     display->drawString(110, 38, String(forcast_temperaturerange2));
    
@@ -1402,31 +1407,35 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
       display->drawHorizontalLine(42, 0, 84);
       display->setFont(DialogInput_bold_12);
  
-      display->drawString(80 , 22 ,"Humt:");
-      display->drawString(111, 22 ,"17.0");
-      display->drawString(125 , 22 , "%");
-      
+      display->drawString(128 , 22 ,Humt);
+
   
-      display->drawString(80, 38,"Temp:");
-      display->drawString(111, 38 ,"26.0");
-      display->drawString(125, 38, "°C");
+      display->drawString(128, 38,Temp);
+ 
     break;
     
 
     
   }
-
-
-  //client.loop();//MUC接收数据的主循环函数。
 }
 
 void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
+  String temp="";
+  //Serial.print("Message arrived [");
+  //Serial.print(topic);
+  //Serial.print("] ");
+
+  //接收的信息
   for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
+    //转变成字符串，将数组每一位连接成字符串
+    temp=temp+(char)payload[i];
+    //Serial.print((char)payload[i]);
   }
+  //Serial.print(temp);
+  //截取出字符串
+  Humt=temp.substring(0,11);
+  Temp=temp.substring(11,23);
+ 
   Serial.println();
 
   // Switch on the LED if an 1 was received as first character
@@ -1642,7 +1651,6 @@ void updateData(OLEDDisplay *display) {
   drawProgress(display, 80, "Mqtt Connect...");
 
 
-  
   drawProgress(display, 100, "Done...");
   
 }

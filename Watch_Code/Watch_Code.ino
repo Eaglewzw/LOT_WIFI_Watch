@@ -30,8 +30,10 @@
 // WIFI账号和密码
 const char* WIFI_SSID = "CMCC-9Nkm";
 const char* WIFI_PWD = "Pm54j#Pm";
+                 
 
 int WIFINumber = 0;//附近WiFi个数
+//存放WIFI的名字
 String WIFIName[20]={};
 
 
@@ -42,7 +44,8 @@ int WeatherFlag=0;
 //定义当日天气变量
 char *location_name = "Lanzhou";
 char *now_temperature = "24";
-
+///////////////////////////////
+/************未来三天预报**********/
 char *forcast_date1 = "2020-12-12";
 char *forcast_code1 = "37";
 char *forcast_temperaturerange1 ="20/-15";
@@ -62,9 +65,11 @@ long timeSinceLastWUpdate = 0;
 //MQTT部分
 WiFiClient espClient;
 PubSubClient client(espClient);
-const char* mqtt_server = "39.105.5.215";
-const char* topic_name = "Eagle_SmartHome";//订阅的主题
+const char* mqtt_server = "39.105.5.215";//服务器地址
+const char*  topic_name = "Eagle_SmartHome";//订阅的主题
+//MQTT目录选择
 int Mqttflag=0;
+/*****MQTT数据获得*********/
 String Humt="Humt:17.0 %";
 String Temp="Temp:26.0°C";
 
@@ -150,6 +155,8 @@ int numberOfFrames = 5;
 
 OverlayCallback overlays[] = { drawHeaderOverlay };
 int numberOfOverlays = 1;
+ int DisplayFlag=0;
+
 
 
 
@@ -224,6 +231,7 @@ void setup() {
     display.display();
     counter++;
   }
+ 
   ui.setTargetFPS(30);
   ui.setActiveSymbol(activeSymbole);
   ui.setInactiveSymbol(inactiveSymbole);
@@ -259,15 +267,13 @@ void loop() {
         client.setServer(mqtt_server, 1883);
         client.setCallback(callback);
         client.connect("LOT_Watch");//再次连接MQTT
-      }
-
-          
+      }  
     if(digitalRead(D7) == HIGH){
       delay(3);
       if(digitalRead(D7) == HIGH){
         while(digitalRead(D7) == HIGH){
           i++;//防止进入死循环
-          if(i>=400000){
+          if(i>=300000){
             i=0;
             break;
           }
@@ -277,7 +283,7 @@ void loop() {
       uiFrameIndex = 0;     
       }
     } 
-    
+
     ui.switchToFrame(uiFrameIndex); 
     //检测闹钟是否到了
     ClockCheck(); 
@@ -288,7 +294,9 @@ void loop() {
 //主界面
 //主要显示日期、时间、天气
 void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
+  int i=0;
   static int count=0;
+  static int key=1;//不支持连按标志
   SetFlag=0;//设置功能归零
   now = time(nullptr);
   struct tm* timeInfo;
@@ -308,8 +316,28 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
 
   //显示当前时间
   sprintf_P(buff, PSTR("%02d:%02d:%02d"), timeInfo->tm_hour, timeInfo->tm_min, timeInfo->tm_sec);
-  display->drawString(44 + x, 10 + y, String(buff));
+  display->drawString(45 + x, 10 + y, String(buff));
   display->setTextAlignment(TEXT_ALIGN_LEFT);
+
+   //选择按键 不支持连按
+   if(digitalRead(D3) == LOW&&key){
+      delay(3);
+      key=0;//不支持连按
+      if(digitalRead(D3) == LOW){
+        DisplayFlag++;
+        if(DisplayFlag==2) {DisplayFlag=0;}
+        while(digitalRead(D3) == LOW){
+          i++;//防止进入死循环
+          if(i>=300000){
+            i=0;
+            break;
+          }
+        }
+      }
+    }else if(digitalRead(D3) == HIGH) {key=1;}
+    
+    if(DisplayFlag==1&&uiFrameIndex==0)      {display->displayOff();digitalWrite(D0, LOW); }
+    else if(DisplayFlag==0&&uiFrameIndex==0) {display->displayOn();digitalWrite(D0, HIGH);}
   
   //显示所在地区
   if(Beep_Flag==0){
@@ -1170,7 +1198,8 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
 
 
 void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  int i=0,SureFlag=0;
+  int i=0;
+  static int Brightness=100;
   Mqttflag =0;//归位前面的标志
   display->setFont(ArialMT_Plain_10);
   //WIFINumber = WiFi.scanNetworks();//扫描附近WiFi个数
@@ -1185,9 +1214,8 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
      // }
     
 
-  
-    //选择
-     if(digitalRead(D3) == LOW){
+ //选择按下
+   if(digitalRead(D3) == LOW){
       delay(5);
       if(digitalRead(D3) == LOW){
         while(digitalRead(D3) == LOW){
@@ -1197,29 +1225,11 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
             break;
           }
         }
-        SureFlag=1;
-      
-    
-      }
-    }
-
-         //Down按键被按下
-     if(digitalRead(D5) == LOW){
-      delay(5);
-      if(digitalRead(D5) == LOW){
-        while(digitalRead(D5) == LOW){
-          i++;//防止进入死循环
-          if(i>=500000){
-            i=0;
-            break;
-          }
-        }
         SetFlag++;
         if(SetFlag==4) SetFlag=0;
-
       }
     }
-
+    
      //Up按键被按下
      if(digitalRead(D6) == LOW){
       delay(5);
@@ -1231,42 +1241,90 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
             break;
           }
         }
+          if(SetFlag==0){
+              Brightness=Brightness+25;
+              if(Brightness==125) Brightness=0;
+          }
         
-         SetFlag--;
-        if(SetFlag<0) SetFlag=3;
-   
       }
     }
-    
-  
+
+     //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        if(SetFlag==0){
+          Brightness=Brightness-25;
+            if(Brightness<0) Brightness=100;
+          }
+        
+      }
+    }
   display->drawXbm(0, 8, Icon_width, Icon_height, Set_Icon_bits);//设置图标
   display->drawVerticalLine(42, 0, 52);//图标右侧竖线
  
-  display->drawXbm(60, 0, 16, 16, hz16[58]);//网络信息
-  display->drawXbm(76, 0, 16, 16, hz16[59]);//
-  display->drawXbm(92, 0, 16, 16, hz16[60]);//
-  display->drawXbm(108, 0, 16, 16, hz16[61]);//
 
-  display->drawXbm(60, 16, 16, 16, hz16[62]);//自动息屏
-  display->drawXbm(76, 16, 16, 16, hz16[63]);//
-  display->drawXbm(92, 16, 16, 16, hz16[61]);//
-  display->drawXbm(108, 16, 16, 16, hz16[64]);//
-
-  display->drawXbm(60, 32, 16, 16, hz16[65]);//电池性能
-  display->drawXbm(76, 32, 16, 16, hz16[66]);//
-  display->drawXbm(92, 32, 16, 16, hz16[67]);//
-  display->drawXbm(108, 32, 16, 16, hz16[68]);//
-
-  if(SetFlag==1){
-    display->drawXbm(50, 4, 8, 8,Pointer_Icon);//指针
-    
-  }else if(SetFlag==2){
-    display->drawXbm(50, 20, 8, 8,Pointer_Icon);//指针
-    
+  if(SetFlag==0){
+    display->drawXbm(58, 0, 16, 16, hz16[58]);//屏幕亮度
+    display->drawXbm(72, 0, 16, 16, hz16[59]);//
+    display->drawXbm(88, 0, 16, 16, hz16[60]);//
+    display->drawXbm(104, 0, 16, 16, hz16[61]);//
+    display->drawString(128 , 22 ,"%");
+    display->setFont(ArialMT_Plain_24);
+    display->drawString(120 , 22 ,String(Brightness));
+    if(Brightness==0){
+          display->drawXbm(46, 18, 32, 32, menu_brightness[4]);
+          display->setBrightness(5);
+        }
+    else if(Brightness==25){
+          display->drawXbm(46, 18, 32, 32, menu_brightness[3]);
+          
+          display->setBrightness(40);
+        }
+    else if(Brightness==50){
+          display->drawXbm(46, 18, 32, 32, menu_brightness[2]);
+          display->setBrightness(80);
+        }
+    else if(Brightness==75){
+          display->drawXbm(46, 18, 32, 32, menu_brightness[1]);
+          display->setBrightness(127);
+        }
+    else{
+          display->drawXbm(46, 18, 32, 32, menu_brightness[0]);
+          display->setContrast(100, 241, 64);
+        }
+    }
+    else if(SetFlag==1){
+    display->drawXbm(46, 18, 32, 32,Voice);
+    display->drawXbm(56, 0, 16, 16, hz16[69]);//声音控制
+    display->drawXbm(72, 0, 16, 16, hz16[75]);//
+    display->drawXbm(88, 0, 16, 16, hz16[76]);//
+    display->drawXbm(104, 0, 16, 16, hz16[77]);//
   }
-  else if(SetFlag==3){
-    display->drawXbm(50, 36, 8, 8,Pointer_Icon);//指针
-    
+  else if(SetFlag==2){
+    display->drawXbm(46, 18, 32, 32,ScreenShot);
+    display->drawXbm(56, 0, 16, 16, hz16[62]);//自动息屏
+    display->drawXbm(72, 0, 16, 16, hz16[63]);//
+    display->drawXbm(88, 0, 16, 16, hz16[64]);//
+    display->drawXbm(104, 0, 16, 16, hz16[58]);//
+
+   
+  }
+   else if(SetFlag==3){
+    display->drawXbm(46, 18, 32, 32,Battery);
+    display->drawXbm(56, 0, 16, 16, hz16[65]);//电池性能
+    display->drawXbm(72, 0, 16, 16, hz16[66]);//
+    display->drawXbm(88, 0, 16, 16, hz16[67]);//
+    display->drawXbm(104, 0, 16, 16, hz16[68]);//
+
+   
   }
 
 
@@ -1498,6 +1556,7 @@ void drawHeaderOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
  *}
  */
 //获取当前天气
+
 void GetCurrentWeather(void)  
 {
     //向心知天气的服务器发送请求。
@@ -1506,7 +1565,7 @@ void GetCurrentWeather(void)
     WiFiClient client;//创建网络对象
     if(client.connect(host, httpPort)==1)                 
     {     
-        //主要格式                                        
+        //主要格式     
         client.print("GET /v3/weather/now.json?key=S0z2fnApuw-q9soOI&location=Lanzhou&language=en&unit=c HTTP/1.1\r\nHost:api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
         String status_code = client.readStringUntil('\r');        //读取GET数据，服务器返回的状态码，若成功则返回状态码200
         Serial.println(status_code);

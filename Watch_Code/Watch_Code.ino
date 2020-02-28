@@ -155,9 +155,7 @@ int numberOfFrames = 5;
 
 OverlayCallback overlays[] = { drawHeaderOverlay };
 int numberOfOverlays = 1;
- int DisplayFlag=0;
-
-
+int DisplayFlag=0;
 
 
 void setup() {
@@ -194,9 +192,31 @@ void setup() {
   pinMode(D7,INPUT);//Set按键
   pinMode(BUILTIN_LED, OUTPUT);  //WIFI模块上的蓝灯
   
-  WiFi.begin(WIFI_SSID, WIFI_PWD);
+  
   display.drawXbm(25, 0, 80, 64, LOT_Watch_Logo_bits);
   display.display();
+
+
+  //WiFi.begin(WIFI_SSID, WIFI_PWD);
+  WiFi.beginSmartConfig();          //开启SmartConfig服务
+  delay(500);
+  int counter = 0;
+  while(!WiFi.smartConfigDone())        //连接不成功标志
+  { 
+    delay(500);
+    display.clear();
+    display.drawString(64, 10, "Connecting to WiFi");
+    display.drawXbm(46, 30, 8, 8, counter % 3 == 0 ? activeSymbole : inactiveSymbole);
+    display.drawXbm(60, 30, 8, 8, counter % 3 == 1 ? activeSymbole : inactiveSymbole);
+    display.drawXbm(74, 30, 8, 8, counter % 3 == 2 ? activeSymbole : inactiveSymbole);
+    display.display();
+    counter++;
+    //若三分钟还未连接，判断无法连接WiFi
+    if(counter==360){
+      display.drawString(64, 10, "WiFi Connect ERROR!!!");
+      break;
+    }
+  }
   
   digitalWrite(D0, LOW); // 亮灯
   delay(200);           // 延时500ms
@@ -218,20 +238,7 @@ void setup() {
   Clock_1_Config = EEPROM.read(Clock1_Adderss);
   Clock_2_Config = EEPROM.read(Clock2_Adderss);
   Clock_3_Config = EEPROM.read(Clock3_Adderss);
-  
 
-  int counter = 0;
-  while (WiFi.status() != WL_CONNECTED) {
-    delay(500);
-    display.clear();
-    display.drawString(64, 10, "Connecting to WiFi");
-    display.drawXbm(46, 30, 8, 8, counter % 3 == 0 ? activeSymbole : inactiveSymbole);
-    display.drawXbm(60, 30, 8, 8, counter % 3 == 1 ? activeSymbole : inactiveSymbole);
-    display.drawXbm(74, 30, 8, 8, counter % 3 == 2 ? activeSymbole : inactiveSymbole);
-    display.display();
-    counter++;
-  }
- 
   ui.setTargetFPS(30);
   ui.setActiveSymbol(activeSymbole);
   ui.setInactiveSymbol(inactiveSymbole);
@@ -242,13 +249,17 @@ void setup() {
   ui.setFrames(frames, numberOfFrames);
   ui.setOverlays(overlays, numberOfOverlays);
   ui.disableAutoTransition();//取消自动模式
+  
   ui.switchToFrame(0);//选择第一个开机画面
+
 
   ui.init();  //Inital UI takes care of initalising the display too.
   display.flipScreenVertically();
   Serial.println("");
   Serial.println("");
   updateData(&display);
+  
+ 
 
 }
 
@@ -337,7 +348,7 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
     }else if(digitalRead(D3) == HIGH) {key=1;}
     
     if(DisplayFlag==1&&uiFrameIndex==0)      {display->displayOff();digitalWrite(D0, LOW); }
-    else if(DisplayFlag==0&&uiFrameIndex==0) {display->displayOn();digitalWrite(D0, HIGH);}
+    else if(DisplayFlag==0&&uiFrameIndex==0) {display->displayOn(); digitalWrite(D0, HIGH);}
   
   //显示所在地区
   if(Beep_Flag==0){
@@ -1622,6 +1633,9 @@ void GetForecastWeather(void)
 {
     String json_from_server; 
     WiFiClient client;
+
+
+    
     if(client.connect(host, httpPort)==1)                 
     {     
         client.print("GET /v3/weather/daily.json?key=cinm0okk7gzgtujn&location=lanzhou&language=en&unit=c&start=0&days=4 HTTP/1.1\r\nHost: api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
@@ -1678,6 +1692,8 @@ void GetForecastWeather(void)
       //strcpy(forcast_text2,jsonBuffer["results"][0]["daily"][1]["text_day"]); //明天天气现象
       //strcpy(forcast_text3,jsonBuffer["results"][0]["daily"][2]["text_day"]); //后天天气现象
       
+      
+      
       client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开   
     
 }
@@ -1696,22 +1712,18 @@ void drawProgress(OLEDDisplay *display, int percentage, String label) {
 
 void updateData(OLEDDisplay *display) {
   drawProgress(display, 10, "Updating time...");
-  GetCurrentWeather();//获取当天天气
+  delay(2500);
   drawProgress(display, 30, "Updating weather...");
+  GetCurrentWeather();//获取当天天气
   GetForecastWeather();//获取未来三天的天气
   drawProgress(display, 50, "Updating forcast...");
-  
   client.setServer(mqtt_server, 1883);
   client.setCallback(callback);
   client.connect("LOT_Watch");//连接MQTT
   Serial.println("MQTT Connected");
   client.subscribe(topic_name);//接收外来的数据时的intopic
-
   drawProgress(display, 80, "Mqtt Connect...");
-
-
   drawProgress(display, 100, "Done...");
-  
 }
 
 
@@ -1721,7 +1733,6 @@ void updateData(OLEDDisplay *display) {
 
 void time_is_set_scheduled() {
   // everything is allowed in this function
-
   if (time_machine_days == 0) {
     time_machine_running = !time_machine_running;
   }
@@ -1754,4 +1765,5 @@ void time_is_set_scheduled() {
       Serial.print("ctime:     ");
       Serial.print(ctime(&now));
   }
+
 }

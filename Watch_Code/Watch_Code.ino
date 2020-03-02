@@ -27,15 +27,17 @@
 //MQTT相关库
 #include <PubSubClient.h>
 
+
+//采用SmartConfig功能后，这部分注释
 // WIFI账号和密码
-const char* WIFI_SSID = "CMCC-9Nkm";
-const char* WIFI_PWD = "Pm54j#Pm";
+//const char* WIFI_SSID = "CMCC-9Nkm";
+//const char* WIFI_PWD = "Pm54j#Pm";
                  
 
 int WIFINumber = 0;//附近WiFi个数
 //存放WIFI的名字
 String WIFIName[20]={};
-
+int WifiConnect=0;//是否重新连接WiFi标志标志
 
 //访问心知天气的网站，获取天气数据
 const int httpPort = 80;
@@ -60,6 +62,7 @@ char *forcast_temperaturerange3 ="20/-17";
 
 int UPDATE_INTERVAL_SECS = 30* 60; //每隔20分钟更新一次外部信息
 long timeSinceLastWUpdate = 0;
+int UpdateFlag=0;
 
 
 //MQTT部分
@@ -211,8 +214,9 @@ void setup() {
     display.drawXbm(74, 30, 8, 8, counter % 3 == 2 ? activeSymbole : inactiveSymbole);
     display.display();
     counter++;
-    //若三分钟还未连接，判断无法连接WiFi
-    if(counter==360){
+    //若一分半钟还未连接，判断无法连接WiFi
+    if(counter==180){
+      WiFi.stopSmartConfig();//关闭SmartConfig
       display.drawString(64, 10, "WiFi Connect ERROR!!!");
       break;
     }
@@ -270,15 +274,6 @@ void loop() {
      *1、选择所在目录
      *2、定时查询天气
      */
-    if (millis() - timeSinceLastWUpdate > (1000L*UPDATE_INTERVAL_SECS)) {
-        client.disconnect();//先断开MQTT的client,因为一次只能只能连接一个端口
-        GetCurrentWeather();  //更新当前天气信息
-        GetForecastWeather(); //更新未来三天天气信息
-        timeSinceLastWUpdate = millis();
-        client.setServer(mqtt_server, 1883);
-        client.setCallback(callback);
-        client.connect("LOT_Watch");//再次连接MQTT
-      }  
     if(digitalRead(D7) == HIGH){
       delay(3);
       if(digitalRead(D7) == HIGH){
@@ -294,12 +289,23 @@ void loop() {
       uiFrameIndex = 0;     
       }
     } 
-
     ui.switchToFrame(uiFrameIndex); 
     //检测闹钟是否到了
     ClockCheck(); 
     //MQTT接收数据
     client.loop();//MUC接收数据的主循环函数。
+         
+    if ( (millis() - timeSinceLastWUpdate > (1000L*UPDATE_INTERVAL_SECS)) || UpdateFlag==1 ) {
+        timeSinceLastWUpdate = millis();
+        client.disconnect();//先断开MQTT的client,因为一次只能只能连接一个端口
+        GetCurrentWeather();  //更新当前天气信息
+        GetForecastWeather(); //更新未来三天天气信息
+        client.setServer(mqtt_server, 1883);
+        client.setCallback(callback);
+        client.connect("LOT_Watch");//再次连接MQTT
+        UpdateFlag=0;
+      }  
+
 }
 
 //主界面
@@ -1211,6 +1217,8 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
 void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
   int i=0;
   static int Brightness=100;
+  static int counter = 0;
+ 
   Mqttflag =0;//归位前面的标志
   display->setFont(ArialMT_Plain_10);
   //WIFINumber = WiFi.scanNetworks();//扫描附近WiFi个数
@@ -1237,7 +1245,7 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
           }
         }
         SetFlag++;
-        if(SetFlag==4) SetFlag=0;
+        if(SetFlag==5) SetFlag=0;
       }
     }
     
@@ -1247,7 +1255,7 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
       if(digitalRead(D6) == LOW){
         while(digitalRead(D6) == LOW){
           i++;//防止进入死循环
-          if(i>=500000){
+          if(i>=400000){
             i=0;
             break;
           }
@@ -1256,7 +1264,9 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
               Brightness=Brightness+25;
               if(Brightness==125) Brightness=0;
           }
-        
+          else if(SetFlag==4){
+              WifiConnect=1;//选择连接WiFi  
+          }
       }
     }
 
@@ -1266,7 +1276,7 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
       if(digitalRead(D5) == LOW){
         while(digitalRead(D5) == LOW){
           i++;//防止进入死循环
-          if(i>=500000){
+          if(i>=400000){
             i=0;
             break;
           }
@@ -1274,6 +1284,9 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
         if(SetFlag==0){
           Brightness=Brightness-25;
             if(Brightness<0) Brightness=100;
+          }
+        else if(SetFlag==4){
+              WifiConnect=0;//不选择连接WiFi
           }
         
       }
@@ -1337,10 +1350,64 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
 
    
   }
+   else if(SetFlag==4){
+    display->drawXbm(56, 0, 16, 16, hz16[78]);//网络连接
+    display->drawXbm(72, 0, 16, 16, hz16[79]);//
+    display->drawXbm(88, 0, 16, 16, hz16[80]);//
+    display->drawXbm(104, 0, 16, 16, hz16[81]);//
 
+    display->drawXbm(46, 36, 16, 16, hz16[83]);//
+    display->drawXbm(62, 36, 16, 16, hz16[78]);//
+    display->drawXbm(78, 36, 16, 16, hz16[84]);//
 
+    if(WifiConnect==1){
+      
+      display->drawXbm(94, 36, 32, 16,Open_Icon);//开
+       //如果连接就显示连接的WiFi名称
+      if(WiFi.status() == WL_CONNECTED) {
+        String Name="";
+        Name=WiFi.SSID();
+        display->drawXbm(46, 18, 16, 16,WIFI_Connect); //显示WiFi图标
+        display->drawString(128, 20,Name);//显示已经连接的WiFi名称(右对齐)
+      }
+      else if(WiFi.status()!= WL_CONNECTED) {
+        display->drawXbm(46, 18, 16, 16,WIFI_DisConnect); //显示未连接WiFi图标
+        display->drawXbm(72, 18, 16, 16, hz16[80]);//连接中
+        display->drawXbm(88, 18, 16, 16, hz16[81]);//
+        display->drawXbm(104, 18, 16, 16, hz16[11]);//
+        WiFi.beginSmartConfig();          //开启SmartConfig服务
+        delay(500);
+        while(!WiFi.smartConfigDone())        //连接不成功标志
+        { 
+          counter++;
+          delay(500);
+          //若半分钟还未连接，判断无法连接WiFi
+          if(counter==120){
+              display->drawXbm(94, 36, 32, 16,Open_Icon);//开
+              WifiConnect=0;
+              break;
+          }
+        }
+        UpdateFlag=1;
+    }
 
-  
+    }else{ 
+       //如果连接就显示连接的WiFi
+       display->drawXbm(94, 36, 32, 16,Close_Icon);//关
+       if(WiFi.status() == WL_CONNECTED) {
+          String Name="";
+          Name=WiFi.SSID();
+          display->drawXbm(46, 18, 16, 16,WIFI_Connect); //显示WiFi图标
+          display->drawString(128, 20,Name);//显示已经连接的WiFi名称(右对齐)
+       }else{
+         display->drawXbm(46, 18, 16, 16,WIFI_DisConnect); //显示未连接WiFi图标
+         display->drawXbm(72, 18, 16, 16, hz16[39]);//未连接
+         display->drawXbm(88, 18, 16, 16, hz16[80]);//
+         display->drawXbm(104, 18, 16, 16, hz16[81]);//
+         WiFi.stopSmartConfig();//关闭SmartConfig
+       }
+    }
+  }  
 }
 
 //电脑端测试
@@ -1577,7 +1644,7 @@ void GetCurrentWeather(void)
     if(client.connect(host, httpPort)==1)                 
     {     
         //主要格式     
-        client.print("GET /v3/weather/now.json?key=S0z2fnApuw-q9soOI&location=Lanzhou&language=en&unit=c HTTP/1.1\r\nHost:api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
+        client.print("GET /v3/weather/now.json?key=cinm0okk7gzgtujn&location=Lanzhou&language=en&unit=c HTTP/1.1\r\nHost:api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
         String status_code = client.readStringUntil('\r');        //读取GET数据，服务器返回的状态码，若成功则返回状态码200
         Serial.println(status_code);
         if(client.find("\r\n\r\n")==1)                            //跳过返回的数据头，直接读取后面的JSON数据，
@@ -1624,7 +1691,7 @@ void GetCurrentWeather(void)
     //Serial.print("temperature:");
     //Serial.println(now_temperature);
  
-    client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开   
+    //client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开   
 }
 
 
@@ -1712,7 +1779,7 @@ void drawProgress(OLEDDisplay *display, int percentage, String label) {
 
 void updateData(OLEDDisplay *display) {
   drawProgress(display, 10, "Updating time...");
-  delay(2500);
+  delay(2500);//等待SNTP服务器响应
   drawProgress(display, 30, "Updating weather...");
   GetCurrentWeather();//获取当天天气
   GetForecastWeather();//获取未来三天的天气
@@ -1723,7 +1790,7 @@ void updateData(OLEDDisplay *display) {
   Serial.println("MQTT Connected");
   client.subscribe(topic_name);//接收外来的数据时的intopic
   drawProgress(display, 80, "Mqtt Connect...");
-  drawProgress(display, 100, "Done...");
+  drawProgress(display, 100, "System Config...");
 }
 
 

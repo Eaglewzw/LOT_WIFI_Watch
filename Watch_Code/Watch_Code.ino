@@ -30,8 +30,8 @@
 
 //采用SmartConfig功能后，这部分注释
 // WIFI账号和密码
-//const char* WIFI_SSID = "CMCC-9Nkm";
-//const char* WIFI_PWD = "Pm54j#Pm";
+const char* WIFI_SSID = "CMCC-9Nkm";
+const char* WIFI_PWD = "Pm54j#Pm";
                  
 
 int WIFINumber = 0;//附近WiFi个数
@@ -60,7 +60,7 @@ char *forcast_date3 = "2020-12-14";
 char *forcast_code3 = "99";
 char *forcast_temperaturerange3 ="20/-17";
 
-int UPDATE_INTERVAL_SECS = 30* 60; //每隔20分钟更新一次外部信息
+int UPDATE_INTERVAL_SECS = 10* 60; //每隔20分钟更新一次外部信息
 long timeSinceLastWUpdate = 0;
 int UpdateFlag=0;
 
@@ -201,6 +201,7 @@ void setup() {
 
 
   //WiFi.begin(WIFI_SSID, WIFI_PWD);
+  //WiFi.mode(WIFI_STA);
   WiFi.beginSmartConfig();          //开启SmartConfig服务
   delay(500);
   int counter = 0;
@@ -218,9 +219,12 @@ void setup() {
     if(counter==180){
       WiFi.stopSmartConfig();//关闭SmartConfig
       display.drawString(64, 10, "WiFi Connect ERROR!!!");
+      delay(1000);
       break;
     }
   }
+  Serial.printf("SSID:%s\r\n", WiFi.SSID().c_str());
+  Serial.printf("PSW:%s\r\n", WiFi.psk().c_str());
   
   digitalWrite(D0, LOW); // 亮灯
   delay(200);           // 延时500ms
@@ -404,6 +408,7 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
       display->drawXbm(110, 12, 10, 40, Figure[temp%10]);
     }
     display->drawXbm(120, 14, 8, 8, thermometer);
+    
 }
 
 
@@ -547,7 +552,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_1_Hour++;
-        if(Clock_1_Hour==24) Clock_1_Hour=0;
+        if(Clock_1_Hour>=24) Clock_1_Hour=0;
       }
     }
      //Down按键被按下
@@ -562,7 +567,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_1_Hour--;
-        if(Clock_1_Hour==-1) Clock_1_Hour=23;
+        if(Clock_1_Hour<=-1) Clock_1_Hour=23;
       }
     }
       display->drawRect(54, 0, 17, 15);
@@ -582,7 +587,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_1_Minute++;
-        if(Clock_1_Minute==60) Clock_1_Minute=0;
+        if(Clock_1_Minute>=60) Clock_1_Minute=0;
       }
     }
         //Down按键被按下
@@ -597,7 +602,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_1_Minute--;
-        if(Clock_1_Minute==-1) Clock_1_Minute=59;
+        if(Clock_1_Minute<=-1) Clock_1_Minute=59;
       }
     }
       display->drawRect(75, 0, 17, 15);
@@ -653,7 +658,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_2_Hour++;
-        if(Clock_2_Hour==24) Clock_2_Hour=0;
+        if(Clock_2_Hour>=24) Clock_2_Hour=0;
       }
     }
      //Down按键被按下
@@ -668,7 +673,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_2_Hour--;
-        if(Clock_2_Hour==-1) Clock_2_Hour=23;
+        if(Clock_2_Hour<=-1) Clock_2_Hour=23;
       }
     }
       display->drawRect(54, 18, 17, 15); 
@@ -688,7 +693,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_2_Minute++;
-        if(Clock_2_Minute==60) Clock_2_Minute=0;
+        if(Clock_2_Minute>=60) Clock_2_Minute=0;
       }
     }
      //Down按键被按下
@@ -703,7 +708,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_2_Minute--;
-        if(Clock_2_Minute==-1) Clock_2_Minute=59;
+        if(Clock_2_Minute<=-1) Clock_2_Minute=59;
       }
     }
       display->drawRect(75, 18, 17, 15); 
@@ -759,7 +764,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_3_Hour++;
-        if(Clock_3_Hour==24) Clock_3_Hour=0;
+        if(Clock_3_Hour>=24) Clock_3_Hour=0;
       }
     }
     //Down按键被按下
@@ -774,7 +779,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_3_Hour--;
-        if(Clock_3_Hour==-1) Clock_3_Hour=23;
+        if(Clock_3_Hour<=-1) Clock_3_Hour=23;
       }
     }
       display->drawRect(54, 36, 17, 15); 
@@ -794,7 +799,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_3_Minute++;
-        if(Clock_3_Minute==60) Clock_3_Minute=0;
+        if(Clock_3_Minute>=60) Clock_3_Minute=0;
       }
     }
 
@@ -812,7 +817,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           }
         }
         Clock_3_Minute--;
-        if(Clock_3_Minute==-1) Clock_3_Minute=59;
+        if(Clock_3_Minute<=-1) Clock_3_Minute=59;
       }
     }
       display->drawRect(75, 36, 17, 15); 
@@ -907,7 +912,6 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
   
   if(WeatherFlag==0){
     temp = String(forcast_code1);
-    
     display->drawXbm(2, 0, 8, 8, activeSymbole);
     display->drawXbm(14, 0, 8, 8,inactiveSymbole);
     display->drawXbm(26, 0, 8, 8,inactiveSymbole);
@@ -1215,22 +1219,15 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
 
 
 void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  int i=0;
-  static int Brightness=100;
+  int i=0,temp;
+  static int Brightness=100;//屏幕亮度，默认100%
+  static int BeepVoice=100;//蜂鸣器响度 默认100%
+  static int Oled_Close=0;//息屏时间
   static int counter = 0;
  
-  Mqttflag =0;//归位前面的标志
+  Mqttflag =0;//归位前一个界面的标志
+  
   display->setFont(ArialMT_Plain_10);
-  //WIFINumber = WiFi.scanNetworks();//扫描附近WiFi个数
-  //for(int i=0;i<WIFINumber;i++){
-  //  WIFIName[i]=String(WiFi.SSID(i));
-    //Seri=al.print(WiFi.SSID(0));
-    //Serial.print(WiFi.RSSI(0));
-  //}
-       // for(int i=0;i<WIFINumber;i++)
-     // {
-      //  display->drawString(128, 10*i, WIFIName[i]);
-     // }
     
 
  //选择按下
@@ -1255,7 +1252,7 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
       if(digitalRead(D6) == LOW){
         while(digitalRead(D6) == LOW){
           i++;//防止进入死循环
-          if(i>=400000){
+          if(i>=500000){
             i=0;
             break;
           }
@@ -1263,6 +1260,14 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
           if(SetFlag==0){
               Brightness=Brightness+25;
               if(Brightness==125) Brightness=0;
+          }
+         else if(SetFlag==1){
+              BeepVoice=BeepVoice+25;
+              if(BeepVoice==125) BeepVoice=0;
+          }
+         else if(SetFlag==2){
+             Oled_Close++;
+              if(Oled_Close==4) Oled_Close=0;
           }
           else if(SetFlag==4){
               WifiConnect=1;//选择连接WiFi  
@@ -1276,7 +1281,7 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
       if(digitalRead(D5) == LOW){
         while(digitalRead(D5) == LOW){
           i++;//防止进入死循环
-          if(i>=400000){
+          if(i>=500000){
             i=0;
             break;
           }
@@ -1284,6 +1289,14 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
         if(SetFlag==0){
           Brightness=Brightness-25;
             if(Brightness<0) Brightness=100;
+          }
+        else if(SetFlag==1){
+              BeepVoice=BeepVoice-25;
+              if(BeepVoice<0) BeepVoice=100;
+          }
+         else if(SetFlag==2){
+             Oled_Close--;
+              if(Oled_Close<0) Oled_Close=3;
           }
         else if(SetFlag==4){
               WifiConnect=0;//不选择连接WiFi
@@ -1327,20 +1340,46 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
     }
     else if(SetFlag==1){
     display->drawXbm(46, 18, 32, 32,Voice);
+    display->drawString(128 , 22 ,"%");//显示显示百分比
     display->drawXbm(56, 0, 16, 16, hz16[69]);//声音控制
     display->drawXbm(72, 0, 16, 16, hz16[75]);//
     display->drawXbm(88, 0, 16, 16, hz16[76]);//
     display->drawXbm(104, 0, 16, 16, hz16[77]);//
+    display->setFont(ArialMT_Plain_24);
+    display->drawString(120 , 22 ,String(BeepVoice));
+       
+    
+    
   }
   else if(SetFlag==2){
     display->drawXbm(46, 18, 32, 32,ScreenShot);
+    display->drawString(128 , 22 ,"min");
     display->drawXbm(56, 0, 16, 16, hz16[62]);//自动息屏
     display->drawXbm(72, 0, 16, 16, hz16[63]);//
     display->drawXbm(88, 0, 16, 16, hz16[64]);//
     display->drawXbm(104, 0, 16, 16, hz16[58]);//
-
-   
+    display->setFont(ArialMT_Plain_24);
+    switch(Oled_Close)
+    {
+      case 0:
+       temp=1;
+       display->drawString(100 , 22 ,String(temp));
+      break;
+      case 1:
+        temp=2;
+        display->drawString(100 , 22 ,String(temp));
+      break;
+      case 2:
+        temp=5;
+        display->drawString(100 , 22 ,String(temp)); 
+      break;
+      case 3:
+        temp=10;
+        display->drawString(110 , 22 ,String(temp)); 
+      break;
+    } 
   }
+  
    else if(SetFlag==3){
     display->drawXbm(46, 18, 32, 32,Battery);
     display->drawXbm(56, 0, 16, 16, hz16[65]);//电池性能
@@ -1640,6 +1679,7 @@ void GetCurrentWeather(void)
     //向心知天气的服务器发送请求。
     //连接服务器并判断是否连接成功，若成功就发送GET 请求数据下发 
     String json_from_server; 
+    uint8_t ErrorTimes=0;
     WiFiClient client;//创建网络对象
     if(client.connect(host, httpPort)==1)                 
     {     
@@ -1657,6 +1697,7 @@ void GetCurrentWeather(void)
     { 
         Serial.println("connection failed this time");
         delay(1000);                                            //请求失败等5秒
+      
     } 
                               
     //const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + 2*JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 210;
@@ -1698,11 +1739,10 @@ void GetCurrentWeather(void)
 //获取未来三天的天气信息
 void GetForecastWeather(void)  
 {
+    uint8_t ErrorTimes=0;
     String json_from_server; 
     WiFiClient client;
 
-
-    
     if(client.connect(host, httpPort)==1)                 
     {     
         client.print("GET /v3/weather/daily.json?key=cinm0okk7gzgtujn&location=lanzhou&language=en&unit=c&start=0&days=4 HTTP/1.1\r\nHost: api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
@@ -1716,6 +1756,7 @@ void GetForecastWeather(void)
     }
     else                                        
     { 
+       
         Serial.println("connection failed this time");
         delay(1000);                                            //请求失败等5秒
     } 

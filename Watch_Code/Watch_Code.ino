@@ -9,88 +9,97 @@
 #include <sntp.h>                       // sntp_servermode_dhcp()
 #include <TZ.h>
 
-//闹钟时间存储区
+/*****闹钟时间存储区****/
 #include <EEPROM.h>
 
-
-//解析天气有关的库
+/*****解析天气有关的库*****/
 #include <ArduinoJson.h> 
 
-//0.96寸OLED显示屏库
+/****0.96寸OLED显示屏库***/
 #include "SSD1306Wire.h"
 #include "OLEDDisplayUi.h"
-//图片有关库
 
+/***图片有关库****/
 #include "WeatherStationImages.h"
 #include "font.h"
 
-//MQTT相关库
+/***MQTT相关库*****/
 #include <PubSubClient.h>
 
 
-//采用SmartConfig功能后，这部分注释
-// WIFI账号和密码
-const char* WIFI_SSID = "CMCC-9Nkm";
-const char* WIFI_PWD = "Pm54j#Pm";
+/*采用SmartConfig功能后，这部分注释
+ *  WIFI账号和密码
+ * const char* WIFI_SSID = "CMCC-9Nkm";
+ * const char* WIFI_PWD = "Pm54j#Pm";
+ */
                  
 
 int WIFINumber = 0;//附近WiFi个数
-//存放WIFI的名字
-String WIFIName[20]={};
+String WIFIName[20]={};//存放WIFI的名字
 int WifiConnect=0;//是否重新连接WiFi标志标志
 
-//访问心知天气的网站，获取天气数据
+/***访问心知天气的网站，获取天气数据***/
 const int httpPort = 80;
 const char* host = "api.seniverse.com";
 int WeatherFlag=0;
-//定义当日天气变量
+
+/****定义当日天气变量********/
 char *location_name = "Lanzhou";
 char *now_temperature = "24";
-///////////////////////////////
+
 /************未来三天预报**********/
-char *forcast_date1 = "2020-12-12";
-char *forcast_code1 = "37";
-char *forcast_temperaturerange1 ="20/-15";
+typedef struct{
+  char forcast_date[11];
+  char forcast_code[3];
+  char forcast_temperaturerange[7];
+}WeatherForcast;
 
-char *forcast_date2 = "2020-12-13";
-char *forcast_code2 = "38";
-char *forcast_temperaturerange2 ="20/-16";
-
-char *forcast_date3 = "2020-12-14";
-char *forcast_code3 = "99";
-char *forcast_temperaturerange3 ="20/-17";
+WeatherForcast ForcastContext[3]={
+{"0000-00-00","99","00/-00"},
+{"0000-00-00","99","00/-00"},
+{"0000-00-00","99","00/-00"},
+};
 
 int UPDATE_INTERVAL_SECS = 10* 60; //每隔20分钟更新一次外部信息
 long timeSinceLastWUpdate = 0;
 int UpdateFlag=0;
 
 
-//MQTT部分
+/********MQTT部分*********/
 WiFiClient espClient;
 PubSubClient client(espClient);
 const char* mqtt_server = "39.105.5.215";//服务器地址
 const char*  topic_name = "Eagle_SmartHome";//订阅的主题
 //MQTT目录选择
 int Mqttflag=0;
+
 /*****MQTT数据获得*********/
 String Humt="Humt:17.0 %";
 String Temp="Temp:26.0°C";
 
 
-//闹钟
-int Clock_1_Hour=6,Clock_1_Minute=0;//第一个事务闹钟
-int Clock_2_Hour=7,Clock_2_Minute=0;//第二个事务闹钟
-int Clock_3_Hour=8,Clock_3_Minute=0;//第三个事务闹钟
+/*******闹钟***********/
+typedef struct{
+  int hour;//闹钟时
+  int minute;//闹钟分
+  bool IsOpen;//闹钟开关标志
+  int hour_address;//时地址
+  int minute_address;//分地址
+  int IsOpen_address;//闹钟开关地址
+  
+}CLOCK;
 
-bool Clock_1_Config=0,Clock_2_Config=0,Clock_3_Config=0;
+CLOCK Clock[3]={
+{6,0,0,0,1,6},
+{7,0,0,2,3,7},
+{8,0,0,4,5,8},
+};
+
+
 int SwitchClock=0;
 int Beep_Flag=0,Stop_Flag=0;;//闹钟响标志位
  
-const int Hour_Address1=0,Minute_Address1=1;
-const int Hour_Address2=2,Minute_Address2=3;
-const int Hour_Address3=4,Minute_Address3=5;
-const int Clock1_Adderss=6,Clock2_Adderss=7,Clock3_Adderss=8;
-//设置标志
+/****设置标志*****/
 int SetFlag=0;
 
 
@@ -109,19 +118,15 @@ static int time_machine_days = 0; // 0 = now
 static bool time_machine_running = false;
 
 
-// 显示屏设置
+/**     
+ *  显示屏设置    
+ *  初始化OLED管脚 地址为0x3c    
+ *  sda-pin=GPIO5(D1) and sdc-pin=GPIO4(D2)              
+*/
 int uiFrameIndex = 0;//界面目录
 const int I2C_DISPLAY_ADDRESS = 0x3c;
-#if defined(ESP8266)
 const int SDA_PIN = D1;
 const int SDC_PIN = D2;
-#endif
-
-
-
-
-//初始化OLED管脚 地址为0x3c
-// sda-pin=GPIO5(D1) and sdc-pin=GPIO4(D2)
 SSD1306Wire     display(I2C_DISPLAY_ADDRESS, SDA_PIN, SDC_PIN);
 OLEDDisplayUi   ui( &display );
 
@@ -150,12 +155,13 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
 void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y);
 void drawHeaderOverlay(OLEDDisplay *display, OLEDDisplayUiState* state);
 
-// Add frames
-// this array keeps function pointers to all frames
-// frames are the single views that slide from right to left
+/** 
+ *  Add frames
+ *  this array keeps function pointers to all frames
+ *  frames are the single views that slide from right to left
+ */
 FrameCallback frames[] = { draw_MeunFram,draw_ClockFram,draw_WeatherFram,draw_MqttFram,draw_SetFram};
 int numberOfFrames = 5;
-
 OverlayCallback overlays[] = { drawHeaderOverlay };
 int numberOfOverlays = 1;
 int DisplayFlag=0;
@@ -194,8 +200,7 @@ void setup() {
   pinMode(D6,INPUT);//Up按键
   pinMode(D7,INPUT);//Set按键
   pinMode(BUILTIN_LED, OUTPUT);  //WIFI模块上的蓝灯
-  
-  
+ 
   display.drawXbm(25, 0, 80, 64, LOT_Watch_Logo_bits);
   display.display();
 
@@ -236,16 +241,12 @@ void setup() {
   delay(200);
 
   //将上次掉电的数据读取出来
-  Clock_1_Hour = EEPROM.read(Hour_Address1);
-  Clock_1_Minute = EEPROM.read(Minute_Address1);
-  Clock_2_Hour = EEPROM.read(Hour_Address2);
-  Clock_2_Minute = EEPROM.read(Minute_Address2);
-  Clock_3_Hour = EEPROM.read(Hour_Address3);
-  Clock_3_Minute = EEPROM.read(Minute_Address3);
-  
-  Clock_1_Config = EEPROM.read(Clock1_Adderss);
-  Clock_2_Config = EEPROM.read(Clock2_Adderss);
-  Clock_3_Config = EEPROM.read(Clock3_Adderss);
+  for(int i=0;i<3;i++)
+  {
+    Clock[i].hour=EEPROM.read(Clock[i].hour_address);
+    Clock[i].minute=EEPROM.read(Clock[i].minute_address);
+    Clock[i].IsOpen=EEPROM.read(Clock[i].IsOpen_address);
+  }
 
   ui.setTargetFPS(30);
   ui.setActiveSymbol(activeSymbole);
@@ -274,10 +275,11 @@ void setup() {
 void loop() {
     int i=0;
     ui.update();//刷新显示屏
-    /*主界面共两个任务
+    /*
+     * 主界面共两个任务
      *1、选择所在目录
      *2、定时查询天气
-     */
+     **/
     if(digitalRead(D7) == HIGH){
       delay(3);
       if(digitalRead(D7) == HIGH){
@@ -357,7 +359,7 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
       }
     }else if(digitalRead(D3) == HIGH) {key=1;}
     
-    if(DisplayFlag==1&&uiFrameIndex==0)      {display->displayOff();digitalWrite(D0, LOW); }
+    if(DisplayFlag==1&&uiFrameIndex==0)      {display->displayOff();digitalWrite(D0, LOW);Beep_Flag=0;Stop_Flag=1; }
     else if(DisplayFlag==0&&uiFrameIndex==0) {display->displayOn(); digitalWrite(D0, HIGH);}
   
   //显示所在地区
@@ -380,11 +382,11 @@ void draw_MeunFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
       display->drawXbm(64, 36, 16, 16, hz16[74]);
     }
     else{
-      display->drawXbm(0, 36, 16, 16, hz16[75]);
-      display->drawXbm(16, 36, 16, 16, hz16[75]);
-      display->drawXbm(32, 36, 16, 16, hz16[75]);
-      display->drawXbm(48, 36, 16, 16, hz16[75]);
-      display->drawXbm(64, 36, 16, 16, hz16[75]);
+      display->drawXbm(0, 36, 16, 16, hz16[85]);
+      display->drawXbm(16, 36, 16, 16, hz16[85]);
+      display->drawXbm(32, 36, 16, 16, hz16[85]);
+      display->drawXbm(48, 36, 16, 16, hz16[85]);
+      display->drawXbm(64, 36, 16, 16, hz16[85]);
     }
     
   }
@@ -424,19 +426,15 @@ void ClockCheck(void){
  
   int Hour=timeInfo->tm_hour, Minute=timeInfo->tm_min;
   //检测三个闹钟是否到了
-  if(Clock_1_Config==1 && Hour==Clock_1_Hour && Minute == Clock_1_Minute){
-       if(Stop_Flag==0) Beep_Flag=1;  
+  for(int i=0;i<3;i++)
+  {
+      if(Clock[i].IsOpen==1 && Hour==Clock[i].hour && Minute == Clock[i].minute)
+      {
+       if(Stop_Flag==0)  Beep_Flag=1;  
        else Beep_Flag=0;  
+      }
+      else Stop_Flag=0;
   }
-  else if(Clock_2_Config==1 && Hour==Clock_2_Hour && Minute == Clock_2_Minute){
-       if(Stop_Flag==0) Beep_Flag=1;  
-       else Beep_Flag=0;   
-  }
-  else if(Clock_3_Config==1 && Hour==Clock_3_Hour && Minute == Clock_3_Minute){
-       if(Stop_Flag==0) Beep_Flag=1;  
-       else Beep_Flag=0;  
-  }
-  else Stop_Flag=0;
   if(Beep_Flag==1){
     digitalWrite(D0, LOW); // 亮灯
     delay(200);           // 延时500ms
@@ -468,7 +466,8 @@ void ClockCheck(void){
 
 //事务闹钟界面
 void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y) {
-  char Clock_1[10],Clock_2[10],Clock_3[10];
+  //char Clock_0[10],Clock_1[10],Clock_2[10];
+  char ClockString[3][10];
   int i=0,WriteFlag=0;
   display->drawVerticalLine(42, 0, 52);
   display->setTextAlignment(TEXT_ALIGN_CENTER);
@@ -491,50 +490,28 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
           SwitchClock=0;
       }
     }
-    
-   
-  //设置三个事务闹钟
-  sprintf_P(Clock_1, PSTR("%02d:%02d"), Clock_1_Hour,Clock_1_Minute);
-  sprintf_P(Clock_2, PSTR("%02d:%02d"), Clock_2_Hour,Clock_2_Minute);
-  sprintf_P(Clock_3, PSTR("%02d:%02d"), Clock_3_Hour,Clock_3_Minute);
-  display->drawString(72, 0,  String(Clock_1));
-  display->drawString(72, 18, String(Clock_2));
-  display->drawString(72, 36, String(Clock_3));
-
-
-  //第一个事务闹钟开关
-  if(Clock_1_Config==0)
-      display->drawXbm(94, 0, 32, 16,Close_Icon);//关
-  else
-      display->drawXbm(94, 0, 32, 16,Open_Icon);//开
-
-
-  //第二个事务闹钟开关    
-  if(Clock_2_Config==0)
-    display->drawXbm(94, 18, 32, 16,Close_Icon);//关
-  else
-    display->drawXbm(94, 18, 32, 16,Open_Icon);//开
-
-  //第三个事务闹钟开关      
-  if(Clock_3_Config==0)  
-    display->drawXbm(94, 36, 32, 16,Close_Icon);//关
-  else
-    display->drawXbm(94, 36, 32, 16,Open_Icon);//开
+  /********设置三个事务闹钟**********/
+  for(int i=0;i<3;i++)
+  {
+    sprintf_P(ClockString[i], PSTR("%02d:%02d"), Clock[i].hour,Clock[i].minute);
+    display->drawString(72, 18*i,  String(ClockString[i]));
+    if(Clock[i].IsOpen ==0)
+      display->drawXbm(94, 18*i, 32, 16,Close_Icon);//关
+    else
+      display->drawXbm(94, 18*i, 32, 16,Open_Icon);//开
+  }
 
 
   switch(SwitchClock){
     
     case 0:
       //将修改的数据保存到EEPROM
-      EEPROM.write(Hour_Address1, Clock_1_Hour);
-      EEPROM.write(Minute_Address1, Clock_1_Minute);
-      EEPROM.write(Hour_Address2, Clock_2_Hour);
-      EEPROM.write(Minute_Address2, Clock_2_Minute);
-      EEPROM.write(Hour_Address3, Clock_3_Hour);
-      EEPROM.write(Minute_Address3, Clock_3_Minute);
-      EEPROM.write(Clock1_Adderss,Clock_1_Config);
-      EEPROM.write(Clock2_Adderss,Clock_2_Config);
-      EEPROM.write(Clock3_Adderss,Clock_3_Config);
+      for(int i=0;i<3;i++)
+      {
+         EEPROM.write(Clock[i].hour_address, Clock[i].hour);
+         EEPROM.write(Clock[i].minute_address, Clock[i].minute);
+         EEPROM.write(Clock[i].IsOpen_address, Clock[i].IsOpen);
+      }
       EEPROM.commit();
     break;
  
@@ -551,8 +528,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_1_Hour++;
-        if(Clock_1_Hour>=24) Clock_1_Hour=0;
+        Clock[0].hour++;
+        if(Clock[0].hour>=24) Clock[0].hour=0;
       }
     }
      //Down按键被按下
@@ -566,8 +543,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_1_Hour--;
-        if(Clock_1_Hour<=-1) Clock_1_Hour=23;
+        Clock[0].hour--;
+        if(Clock[0].hour<=-1) Clock[0].hour=23;
       }
     }
       display->drawRect(54, 0, 17, 15);
@@ -586,8 +563,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_1_Minute++;
-        if(Clock_1_Minute>=60) Clock_1_Minute=0;
+        Clock[0].minute++;
+        if(Clock[0].minute>=60) Clock[0].minute=0;
       }
     }
         //Down按键被按下
@@ -601,8 +578,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_1_Minute--;
-        if(Clock_1_Minute<=-1) Clock_1_Minute=59;
+        Clock[0].minute--;
+        if(Clock[0].minute<=-1) Clock[0].minute=59;
       }
     }
       display->drawRect(75, 0, 17, 15);
@@ -622,7 +599,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_1_Config=1;
+        Clock[0].IsOpen=1;
         
       }
     }
@@ -637,7 +614,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-          Clock_1_Config=0;
+          Clock[0].IsOpen=0;
       }
     }
       display->drawRect(94, 0, 32, 16);
@@ -657,8 +634,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_2_Hour++;
-        if(Clock_2_Hour>=24) Clock_2_Hour=0;
+        Clock[1].hour++;
+        if(Clock[1].hour>=24) Clock[1].hour=0;
       }
     }
      //Down按键被按下
@@ -672,8 +649,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_2_Hour--;
-        if(Clock_2_Hour<=-1) Clock_2_Hour=23;
+        Clock[1].hour--;
+        if(Clock[1].hour<=-1) Clock[1].hour=23;
       }
     }
       display->drawRect(54, 18, 17, 15); 
@@ -692,8 +669,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_2_Minute++;
-        if(Clock_2_Minute>=60) Clock_2_Minute=0;
+        Clock[1].minute++;
+        if(Clock[1].minute>=60) Clock[1].minute=0;
       }
     }
      //Down按键被按下
@@ -707,8 +684,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_2_Minute--;
-        if(Clock_2_Minute<=-1) Clock_2_Minute=59;
+        Clock[1].minute--;
+        if(Clock[1].minute<=-1) Clock[1].minute=59;
       }
     }
       display->drawRect(75, 18, 17, 15); 
@@ -727,7 +704,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_2_Config=1;
+        Clock[1].IsOpen=1;
         
       }
     }
@@ -742,7 +719,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-          Clock_2_Config=0;
+          Clock[1].IsOpen=0;
       
       }
     }
@@ -763,8 +740,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_3_Hour++;
-        if(Clock_3_Hour>=24) Clock_3_Hour=0;
+        Clock[2].hour++;
+        if(Clock[2].hour>=24) Clock[2].hour=0;
       }
     }
     //Down按键被按下
@@ -778,8 +755,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_3_Hour--;
-        if(Clock_3_Hour<=-1) Clock_3_Hour=23;
+        Clock[2].hour--;
+        if(Clock[2].hour<=-1) Clock[2].hour=23;
       }
     }
       display->drawRect(54, 36, 17, 15); 
@@ -798,8 +775,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_3_Minute++;
-        if(Clock_3_Minute>=60) Clock_3_Minute=0;
+        Clock[2].minute++;
+        if(Clock[2].minute>=60) Clock[2].minute=0;
       }
     }
 
@@ -816,8 +793,8 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_3_Minute--;
-        if(Clock_3_Minute<=-1) Clock_3_Minute=59;
+        Clock[2].minute--;
+        if(Clock[2].minute<=-1) Clock[2].minute=59;
       }
     }
       display->drawRect(75, 36, 17, 15); 
@@ -836,7 +813,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-        Clock_3_Config=1;
+        Clock[2].IsOpen=1;
         
       }
     }
@@ -851,8 +828,7 @@ void draw_ClockFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, 
             break;
           }
         }
-          Clock_3_Config=0;
-      
+          Clock[2].IsOpen=0;
       }
     }
       display->drawRect(94, 36, 32, 16);
@@ -908,44 +884,29 @@ void draw_WeatherFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x
             WeatherFlag=2;  
       }
     }
-
-  
+    //截取日期 格式为2018-02-14  截取后面5位
+    temp = String(ForcastContext[WeatherFlag].forcast_code);
+    display->drawString(122, 1, "("+String(ForcastContext[WeatherFlag].forcast_date).substring(5)+")");
+    display->drawString(110, 38, String(ForcastContext[WeatherFlag].forcast_temperaturerange));
   if(WeatherFlag==0){
-    temp = String(forcast_code1);
     display->drawXbm(2, 0, 8, 8, activeSymbole);
     display->drawXbm(14, 0, 8, 8,inactiveSymbole);
     display->drawXbm(26, 0, 8, 8,inactiveSymbole);
     display->drawXbm(40, 0, 16, 16, hz16[0]);//今
-    display->drawString(122, 1, "("+String(forcast_date1).substring(5)+")");
-    display->drawString(110, 38, String(forcast_temperaturerange1));
-    
-  
   }
       
   else if(WeatherFlag==1){
-    temp = String(forcast_code2);
+   
     display->drawXbm(2, 0, 8, 8, inactiveSymbole);
     display->drawXbm(14, 0, 8, 8,activeSymbole);
     display->drawXbm(26, 0, 8, 8,inactiveSymbole);
     display->drawXbm(40, 0, 16, 16, hz16[1]);//明
-    //截取日期 格式为2018-02-14  截取后面5位
-    display->drawString(122, 1, "("+String(forcast_date2).substring(5)+")");
-    display->drawString(110, 38, String(forcast_temperaturerange2));
-   
-    
   }
-      
   else if(WeatherFlag==2){
-    temp = String(forcast_code3);
     display->drawXbm(2, 0, 8, 8, inactiveSymbole);
     display->drawXbm(14, 0, 8, 8,inactiveSymbole);
     display->drawXbm(26, 0, 8, 8,activeSymbole);
     display->drawXbm(40, 0, 16, 16, hz16[2]);//后
-    //截取日期
-    display->drawString(122, 1, "("+String(forcast_date3).substring(5)+")");
-    
-    display->drawString(110, 38, String(forcast_temperaturerange3));
-   
   }
      
   //显示预报的日期、天气情况、温度范围
@@ -1627,7 +1588,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
 
 
 
-//底层界面，包括显示时间，当天气温
+//底层界面，包括显示时间、电量
 void drawHeaderOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
   now = time(nullptr);
   struct tm* timeInfo;
@@ -1770,37 +1731,21 @@ void GetForecastWeather(void)
       return;
     }
     //以下代码分别提取地区，当前天气，代码，及湿度
-      strcpy(forcast_code2,jsonBuffer["results"][0]["daily"][1]["code_day"]); //明天天气代码
-      strcpy(forcast_code1,jsonBuffer["results"][0]["daily"][0]["code_day"]); //今天天气代码
-      strcpy(forcast_code3,jsonBuffer["results"][0]["daily"][2]["code_day"]); //后天天气代码
-
-      strcpy(forcast_date1,jsonBuffer["results"][0]["daily"][0]["date"]); //今天的日期
-      strcpy(forcast_date2,jsonBuffer["results"][0]["daily"][1]["date"]); //明天的日期
-      strcpy(forcast_date3,jsonBuffer["results"][0]["daily"][2]["date"]); //后天的日期
-
-      char *Localtemp="000";//临时变量，注意字符个数
-      strcpy(forcast_temperaturerange1,jsonBuffer["results"][0]["daily"][0]["high"]); //今天最高温度
-      strcpy(Localtemp,jsonBuffer["results"][0]["daily"][0]["low"]); //明天最低温度
-      strcat(forcast_temperaturerange1,"/"); //连接两个字符串
-      strcat(forcast_temperaturerange1,Localtemp);
+    char* Localtemp="000";//临时变量，注意字符个数
+    for(int i=0;i<3;i++)
+    {
+       strcpy(ForcastContext[i].forcast_code,jsonBuffer["results"][0]["daily"][i]["code_day"]);
+       strcpy(ForcastContext[i].forcast_date,jsonBuffer["results"][0]["daily"][i]["date"]);
+       strcpy(ForcastContext[i].forcast_temperaturerange,jsonBuffer["results"][0]["daily"][i]["high"]); //最高温度
+       strcpy(Localtemp,jsonBuffer["results"][0]["daily"][i]["low"]); //最低温度
+       strcat(ForcastContext[i].forcast_temperaturerange,"/"); //连接两个字符串
+       strcat(ForcastContext[i].forcast_temperaturerange,Localtemp);
+    }
       
-     
-      strcpy(forcast_temperaturerange2,jsonBuffer["results"][0]["daily"][1]["high"]); //明天最高温度
-      strcpy(Localtemp,jsonBuffer["results"][0]["daily"][1]["low"]); //明天最低温度
-      strcat(forcast_temperaturerange2,"/"); //连接两个字符串
-      strcat(forcast_temperaturerange2,Localtemp);
-      
- 
-      strcpy(forcast_temperaturerange3,jsonBuffer["results"][0]["daily"][2]["high"]); //后天最高温度
-      strcpy(Localtemp,jsonBuffer["results"][0]["daily"][2]["low"]); //后天最低温度
-      strcat(forcast_temperaturerange3,"/"); //连接两个字符串
-      strcat(forcast_temperaturerange3,Localtemp);
 
       //strcpy(forcast_text1,jsonBuffer["results"][0]["daily"][0]["text_day"]); //今天天气现象
       //strcpy(forcast_text2,jsonBuffer["results"][0]["daily"][1]["text_day"]); //明天天气现象
       //strcpy(forcast_text3,jsonBuffer["results"][0]["daily"][2]["text_day"]); //后天天气现象
-      
-      
       
       client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开   
     

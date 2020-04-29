@@ -1,6 +1,6 @@
 #include <ESP8266WiFi.h>
 
-//SNTP网络时间获取
+/***SNTP网络时间获取****/
 #include <coredecls.h>                  // settimeofday_cb()
 #include <Schedule.h>
 #include <PolledTimeout.h>
@@ -33,6 +33,9 @@
  * const char* WIFI_PWD = "Pm54j#Pm";
  */
                  
+const char* WIFI_SSID = "CMCC-9Nkm";
+const char* WIFI_PWD = "Pm54j#Pm";
+
 
 int WIFINumber = 0;//附近WiFi个数
 String WIFIName[20]={};//存放WIFI的名字
@@ -60,7 +63,7 @@ WeatherForcast ForcastContext[3]={
 {"0000-00-00","99","00/-00"},
 };
 
-int UPDATE_INTERVAL_SECS = 10* 60; //每隔20分钟更新一次外部信息
+int UPDATE_INTERVAL_SECS = 60* 60; //每隔30分钟更新一次外部信息
 long timeSinceLastWUpdate = 0;
 int UpdateFlag=0;
 
@@ -70,7 +73,7 @@ WiFiClient espClient;
 PubSubClient client(espClient);
 const char* mqtt_server = "39.105.5.215";//服务器地址
 const char*  topic_name = "Eagle_SmartHome";//订阅的主题
-//MQTT目录选择
+/*******MQTT目录选择*******/
 int Mqttflag=0;
 
 /*****MQTT数据获得*********/
@@ -98,6 +101,7 @@ CLOCK Clock[3]={
 
 int SwitchClock=0;
 int Beep_Flag=0,Stop_Flag=0;;//闹钟响标志位
+
  
 /****设置标志*****/
 int SetFlag=0;
@@ -193,7 +197,7 @@ void setup() {
   display.setFont(ArialMT_Plain_10);
   display.setTextAlignment(TEXT_ALIGN_CENTER);
   display.setContrast(255);
-
+  
   pinMode(D0,OUTPUT);//LED灯管脚
   pinMode(D3,INPUT); //Back按键
   pinMode(D5,INPUT);//Down按键
@@ -204,32 +208,67 @@ void setup() {
   display.drawXbm(25, 0, 80, 64, LOT_Watch_Logo_bits);
   display.display();
 
-
-  //WiFi.begin(WIFI_SSID, WIFI_PWD);
-  //WiFi.mode(WIFI_STA);
+  int counter=0;//计数器
+  int auto_connect_flag=0;//自动连接标志
+  WiFi.mode(WIFI_STA);
+  WIFINumber = WiFi.scanNetworks();//附近WiFi个数
+  for(int i=0;i< WIFINumber;i++)
+  {
+    if(WiFi.SSID()==WiFi.SSID(i))  //如果扫描列表中存在已经记录的WiFi，这直接连接
+    {
+      auto_connect_flag=1;
+      break;
+    } 
+  }
+  
+  if(auto_connect_flag)
+  {
+      WiFi.begin(WiFi.SSID(), WiFi.psk());
+      while (WiFi.status() != WL_CONNECTED) {
+        delay(500);
+        Serial.print(".");
+        display.clear();
+        display.drawString(64, 10, "Connecting to WiFi");
+        display.drawXbm(46, 30, 8, 8, counter % 3 == 0 ? activeSymbole : inactiveSymbole);
+        display.drawXbm(60, 30, 8, 8, counter % 3 == 1 ? activeSymbole : inactiveSymbole);
+        display.drawXbm(74, 30, 8, 8, counter % 3 == 2 ? activeSymbole : inactiveSymbole);
+        display.display();
+        counter++;
+    }
+  }
+  else{
   WiFi.beginSmartConfig();          //开启SmartConfig服务
   delay(500);
-  int counter = 0;
+  uint32_t WiFiTimer=millis();
   while(!WiFi.smartConfigDone())        //连接不成功标志
   { 
     delay(500);
     display.clear();
+    Serial.print("SmartConfig Connecting...");
     display.drawString(64, 10, "Connecting to WiFi");
     display.drawXbm(46, 30, 8, 8, counter % 3 == 0 ? activeSymbole : inactiveSymbole);
     display.drawXbm(60, 30, 8, 8, counter % 3 == 1 ? activeSymbole : inactiveSymbole);
     display.drawXbm(74, 30, 8, 8, counter % 3 == 2 ? activeSymbole : inactiveSymbole);
     display.display();
     counter++;
-    //若一分半钟还未连接，判断无法连接WiFi
-    if(counter==180){
+    //若3分钟还未连接，判断无法连接WiFi
+    if(millis()-WiFiTimer>1000L*(3*60)){
       WiFi.stopSmartConfig();//关闭SmartConfig
+      Serial.println("SmartConfig Connecting  Failed");
       display.drawString(64, 10, "WiFi Connect ERROR!!!");
       delay(1000);
       break;
     }
+  }     
+ }
+
+  
+  if(WiFi.status() == WL_CONNECTED) 
+  {
+    Serial.println("WIFI Connected");
+    Serial.printf("SSID:%s\r\n", WiFi.SSID().c_str());
+    Serial.printf("PSW:%s\r\n", WiFi.psk().c_str());
   }
-  Serial.printf("SSID:%s\r\n", WiFi.SSID().c_str());
-  Serial.printf("PSW:%s\r\n", WiFi.psk().c_str());
   
   digitalWrite(D0, LOW); // 亮灯
   delay(200);           // 延时500ms
@@ -244,7 +283,9 @@ void setup() {
   for(int i=0;i<3;i++)
   {
     Clock[i].hour=EEPROM.read(Clock[i].hour_address);
+    if(Clock[i].hour >=24  || Clock[i].hour<0)  Clock[i].hour ==7;//第一次读数据赋值
     Clock[i].minute=EEPROM.read(Clock[i].minute_address);
+    if(Clock[i].minute >=24 || Clock[i].minute<0)  Clock[i].minute ==0;//第一次读数据赋值
     Clock[i].IsOpen=EEPROM.read(Clock[i].IsOpen_address);
   }
 
@@ -267,7 +308,7 @@ void setup() {
   Serial.println("");
   Serial.println("");
   updateData(&display);
-  
+  timeSinceLastWUpdate = millis();
  
 
 }
@@ -285,7 +326,7 @@ void loop() {
       if(digitalRead(D7) == HIGH){
         while(digitalRead(D7) == HIGH){
           i++;//防止进入死循环
-          if(i>=300000){
+          if(i>=500000){
             i=0;
             break;
           }
@@ -302,13 +343,11 @@ void loop() {
     client.loop();//MUC接收数据的主循环函数。
          
     if ( (millis() - timeSinceLastWUpdate > (1000L*UPDATE_INTERVAL_SECS)) || UpdateFlag==1 ) {
+        Serial.println("Update Weather...");
         timeSinceLastWUpdate = millis();
         client.disconnect();//先断开MQTT的client,因为一次只能只能连接一个端口
         GetCurrentWeather();  //更新当前天气信息
         GetForecastWeather(); //更新未来三天天气信息
-        client.setServer(mqtt_server, 1883);
-        client.setCallback(callback);
-        client.connect("LOT_Watch");//再次连接MQTT
         UpdateFlag=0;
       }  
 
@@ -1415,9 +1454,12 @@ void draw_SetFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, in
 //端口：1883
 void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, int16_t y){
   int i=0;
+  static uint32_t changeTime=millis();
+  static uint32_t MQTTTimer=millis();
   //定义控制变量
   static int LED_flag=0;
   static int Fan_Speed=0;
+  static int IsOpenMqtt=0;//默认MQTT关闭
   char msg[50]="";
   WeatherFlag=0;
   display->setFont(DialogInput_bold_12);
@@ -1436,14 +1478,95 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
           }
         }
         Mqttflag++;
-        if(Mqttflag==3)
+        if(Mqttflag==4)
           Mqttflag=0;
       }
     }
   
-
+ 
   switch(Mqttflag){
     case 0:
+    display->drawString(86, 0,"MQTT");
+    display->drawString(84, 36,"MQTT:");
+    display->drawXbm(88, 0, 16, 16, hz16[80]);//连接
+    display->drawXbm(104, 0, 16, 16, hz16[81]);//
+     //Up按键被按下
+     if(digitalRead(D6) == LOW){
+      delay(5);
+      if(digitalRead(D6) == LOW){
+        while(digitalRead(D6) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        IsOpenMqtt=1;
+      }
+    }
+
+     //Down按键被按下
+     if(digitalRead(D5) == LOW){
+      delay(5);
+      if(digitalRead(D5) == LOW){
+        while(digitalRead(D5) == LOW){
+          i++;//防止进入死循环
+          if(i>=500000){
+            i=0;
+            break;
+          }
+        }
+        IsOpenMqtt=0;
+      }
+    }
+    if(IsOpenMqtt)
+    { 
+      if(client.connected())
+      {
+        display->drawXbm(72, 18, 16, 16, hz16[82]);//已连接
+        display->drawXbm(88, 18, 16, 16, hz16[80]);//
+        display->drawXbm(104, 18, 16, 16, hz16[81]);//
+        display->drawXbm(94, 36, 32, 16,Open_Icon);//开
+        client.subscribe(topic_name);//接收外来的数据时的intopic
+      }else{
+        while (!client.connected())
+        {
+          display->drawXbm(94, 36, 32, 16,Open_Icon);//开
+          Serial.println("MQTT Connecting...");
+          client.setServer(mqtt_server, 1883);
+          client.setCallback(callback);
+          client.connect("LOT_Watch");//连接MQTT
+          display->drawXbm(72, 18, 16, 16, hz16[80]);//连接中
+          display->drawXbm(88, 18, 16, 16, hz16[81]);//
+          display->drawXbm(104, 18, 16, 16, hz16[11]);//
+          delay(1000);
+          if(millis()-MQTTTimer>1000L*(3*60))
+          {
+            Serial.println("MQTT Connected failed");
+            break;
+           } 
+        }
+        if(client.connected())
+        {
+            display->drawXbm(72, 18, 16, 16, hz16[82]);//已连接
+            display->drawXbm(88, 18, 16, 16, hz16[80]);//
+            display->drawXbm(104, 18, 16, 16, hz16[81]);//
+            display->drawXbm(94, 36, 32, 16,Open_Icon);//开
+            Serial.println("MQTT Connected");
+            client.subscribe(topic_name);//接收外来的数据时的intopic
+        }
+      }
+    }
+    else{
+      client.disconnect();
+      display->drawXbm(94, 36, 32, 16,Close_Icon);
+      display->drawXbm(72, 18, 16, 16, hz16[39]);//未连接
+      display->drawXbm(88, 18, 16, 16, hz16[80]);//
+      display->drawXbm(104, 18, 16, 16, hz16[81]);//
+    }
+    break;
+    
+    case 1:
     display->drawXbm(96, 0, 16, 16, hz16[44]);//台
     display->drawXbm(112, 0, 16, 16, hz16[45]);//灯
      //Up按键被按下
@@ -1478,18 +1601,28 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
      if(LED_flag==0){
         display->drawXbm(54, 2, 34, 50, TaiDeng_OFF_Icon_bits);  //家具标志图标
         display->drawXbm(94, 36, 32, 16,Close_Icon);//关
-        client.publish("Eagle_Watch", "LED_OFF");//发主题Eagle_Watch
-        delay(100);//延迟100mS
+        if(millis()-changeTime>1000 &&client.connected())
+        {
+          Serial.println("LED_OFF");
+          client.publish("Eagle_Watch", "LED_OFF");//发主题Eagle_Watch
+          changeTime=millis();
+        }
+        
      }
      else{
         display->drawXbm(54, 2, 34, 50, TaiDeng_ON_Icon_bits);  //家具标志图标
-        display->drawXbm(94, 36, 32, 16,Open_Icon);//关
-        client.publish("Eagle_Watch", "LED_ON");//发主题Eagle_Watch
-        delay(100);//延迟100mS
+        display->drawXbm(94, 36, 32, 16,Open_Icon);
+        if(millis()-changeTime>1000 &&client.connected())//1秒钟发送一次
+        {
+          Serial.println("LED_ON");
+          client.publish("Eagle_Watch", "LED_ON");//发主题Eagle_Watch
+          changeTime=millis();
+        }
+
      }
     break;
     
-    case 1:
+    case 2:
         display->drawXbm(96, 0, 16, 16, hz16[46]);//空
         display->drawXbm(112, 0, 16, 16, hz16[47]);//调
         display->drawXbm(96, 18, 16, 16, hz16[48]);//风
@@ -1526,14 +1659,17 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
       }
     }
         
-        display->drawString(120, 36, String(Fan_Speed));
-        
-        snprintf(msg,14,"Fan_Speed:%d",Fan_Speed);
-        client.publish("Eagle_Watch",msg);
-        delay(100);//延迟100mS
+    display->drawString(120, 36, String(Fan_Speed));
+    snprintf(msg,14,"Fan_Speed:%d",Fan_Speed);
+   if(millis()-changeTime>1000 &&client.connected())
+    {
+      Serial.println(msg);
+      client.publish("Eagle_Watch",msg);
+      changeTime=millis();
+    }
     break; 
        
-    case 2:
+    case 3:
       display->drawXbm(46, 2, 16, 16, hz16[50]);//室
       display->drawXbm(62, 2, 16, 16, hz16[51]);//内
       display->drawXbm(78, 2, 16, 16, hz16[4]);//温
@@ -1542,16 +1678,9 @@ void draw_MqttFram(OLEDDisplay *display, OLEDDisplayUiState* state, int16_t x, i
       display->drawHorizontalLine(42, 20, 84);
       display->drawHorizontalLine(42, 0, 84);
       display->setFont(DialogInput_bold_12);
- 
       display->drawString(128 , 22 ,Humt);
-
-  
       display->drawString(128, 38,Temp);
- 
     break;
-    
-
-    
   }
 }
 
@@ -1609,9 +1738,7 @@ void drawHeaderOverlay(OLEDDisplay *display, OLEDDisplayUiState* state) {
 }
 
 
-// Json数据解析并串口打印
-
-/*  请求的Json数据格式如下：
+/**获取到的Json数据格式   
  * {
  *    "results": [
  *        {
@@ -1640,9 +1767,9 @@ void GetCurrentWeather(void)
     //向心知天气的服务器发送请求。
     //连接服务器并判断是否连接成功，若成功就发送GET 请求数据下发 
     String json_from_server; 
-    uint8_t ErrorTimes=0;
+    uint8_t ErrorTimes=0;//未成功的次数计算
     WiFiClient client;//创建网络对象
-    if(client.connect(host, httpPort)==1)                 
+    LABEL:if(client.connect(host, httpPort)==1)                 
     {     
         //主要格式     
         client.print("GET /v3/weather/now.json?key=cinm0okk7gzgtujn&location=Lanzhou&language=en&unit=c HTTP/1.1\r\nHost:api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
@@ -1655,15 +1782,16 @@ void GetCurrentWeather(void)
         }
     }
     else                                        
-    { 
-        Serial.println("connection failed this time");
-        delay(1000);                                            //请求失败等5秒
-      
+    {
+      ErrorTimes++;//计算次数
+      if(ErrorTimes>5)
+        goto END;
+      Serial.println("Weather connection failed this time");
+      delay(1000); //请求失败等1秒
+      goto LABEL;
     } 
-                              
-    //const size_t capacity = JSON_ARRAY_SIZE(1) + JSON_OBJECT_SIZE(1) + 2*JSON_OBJECT_SIZE(3) + JSON_OBJECT_SIZE(6) + 210;
-    //DynamicJsonDocument jsonBuffer(capacity);
-    DynamicJsonDocument jsonBuffer(500);
+                         
+    END:DynamicJsonDocument jsonBuffer(500);
     // Parse JSON object
     //将天气数据放入jsonBuffer
     DeserializationError error = deserializeJson(jsonBuffer, json_from_server);
@@ -1678,20 +1806,6 @@ void GetCurrentWeather(void)
     strcpy(now_temperature,jsonBuffer["results"][0]["now"]["temperature"]);
     //strcpy(now_text,jsonBuffer["results"][0]["now"]["text"]);
     //strcpy(now_code,jsonBuffer["results"][0]["now"]["code"]);
-    
-    //通过串口打印出需要的信息
-    //Serial.println("Today's Weather");
-    //Serial.print("location_name:");
-    //Serial.println(location_name); 
-                        
-    //Serial.print("text:");
-    //Serial.println(now_text);
-   
-    //Serial.print("code:");
-    //Serial.println(now_code);
-
-    //Serial.print("temperature:");
-    //Serial.println(now_temperature);
  
     //client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开   
 }
@@ -1704,7 +1818,7 @@ void GetForecastWeather(void)
     String json_from_server; 
     WiFiClient client;
 
-    if(client.connect(host, httpPort)==1)                 
+    LABEL:if(client.connect(host, httpPort)==1)                 
     {     
         client.print("GET /v3/weather/daily.json?key=cinm0okk7gzgtujn&location=lanzhou&language=en&unit=c&start=0&days=4 HTTP/1.1\r\nHost: api.seniverse.com\r\n\r\n"); //心知天气的URL格式          
         String status_code = client.readStringUntil('\r');        //读取GET数据，服务器返回的状态码，若成功则返回状态码200
@@ -1716,13 +1830,16 @@ void GetForecastWeather(void)
         }
     }
     else                                        
-    { 
-       
-        Serial.println("connection failed this time");
-        delay(1000);                                            //请求失败等5秒
+    {
+      ErrorTimes++;//计算次数
+      if(ErrorTimes>5)
+        goto END;
+      Serial.println("Weather connection failed this time");
+      delay(1000); //请求失败等1秒
+      goto LABEL;
     } 
     //1600字节是因为https://arduinojson.org/v6/api/json/deserializejson/                        
-    DynamicJsonDocument jsonBuffer(2000);
+    END:DynamicJsonDocument jsonBuffer(2000);
     //将天气数据放入jsonBuffer
     DeserializationError error = deserializeJson(jsonBuffer, json_from_server);
     if (error) {
@@ -1741,13 +1858,12 @@ void GetForecastWeather(void)
        strcat(ForcastContext[i].forcast_temperaturerange,"/"); //连接两个字符串
        strcat(ForcastContext[i].forcast_temperaturerange,Localtemp);
     }
-      
 
       //strcpy(forcast_text1,jsonBuffer["results"][0]["daily"][0]["text_day"]); //今天天气现象
       //strcpy(forcast_text2,jsonBuffer["results"][0]["daily"][1]["text_day"]); //明天天气现象
       //strcpy(forcast_text3,jsonBuffer["results"][0]["daily"][2]["text_day"]); //后天天气现象
       
-      client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开   
+      client.stop();     //关闭HTTP客户端，采用HTTP短链接，数据请求完毕后要客户端要主动断开  
     
 }
 
@@ -1756,31 +1872,39 @@ void GetForecastWeather(void)
 void drawProgress(OLEDDisplay *display, int percentage, String label) {
   display->clear();
   display->setTextAlignment(TEXT_ALIGN_CENTER);
-  //设置字体
-  display->setFont(ArialMT_Plain_10);
+  display->setFont(ArialMT_Plain_10); //设置字体
   display->drawString(64, 10, label);
   display->drawProgressBar(2, 28, 124, 10, percentage);
   display->display();
 }
 
 void updateData(OLEDDisplay *display) {
-  drawProgress(display, 10, "Updating time...");
+  uint32_t MQTTTimer=millis();
+  drawProgress(display, 30, "Updating time...");
   delay(2500);//等待SNTP服务器响应
   drawProgress(display, 30, "Updating weather...");
   GetCurrentWeather();//获取当天天气
   GetForecastWeather();//获取未来三天的天气
-  drawProgress(display, 50, "Updating forcast...");
-  client.setServer(mqtt_server, 1883);
-  client.setCallback(callback);
-  client.connect("LOT_Watch");//连接MQTT
-  Serial.println("MQTT Connected");
-  client.subscribe(topic_name);//接收外来的数据时的intopic
   drawProgress(display, 80, "Mqtt Connect...");
+  while (!client.connected()){
+    Serial.println("MQTT Connecting...");
+    client.setServer(mqtt_server, 1883);
+    client.setCallback(callback);
+    client.connect("LOT_Watch");//连接MQTT
+    delay(1000);
+    if(millis()-MQTTTimer>1000L*(3*60))
+    {
+      Serial.println("MQTT Connected failed");
+      break;
+     } 
+  }
+  if(client.connected())
+  {
+     Serial.println("MQTT Connected");
+    client.subscribe(topic_name);//接收外来的数据时的intopic
+  }
   drawProgress(display, 100, "System Config...");
 }
-
-
-
 
 
 
